@@ -4,8 +4,9 @@ import { getLaunchStatusMeta } from "@/lib/launch-status";
 describe("launch status presentation", () => {
   it("maps every current Launch Library status to the right tone", () => {
     expect(getLaunchStatusMeta("Go")).toEqual({ label: "计划发射", tone: "planned" });
-    expect(getLaunchStatusMeta("TBC").tone).toBe("pending");
-    expect(getLaunchStatusMeta("TBD").tone).toBe("pending");
+    expect(getLaunchStatusMeta("TBC")).toEqual({ label: "时间待定", tone: "pending" });
+    expect(getLaunchStatusMeta("TBD")).toEqual({ label: "时间待定", tone: "pending" });
+    expect(getLaunchStatusMeta(null, "时间待确认")).toEqual({ label: "时间待定", tone: "pending" });
     expect(getLaunchStatusMeta("Hold").tone).toBe("pending");
     expect(getLaunchStatusMeta("In Flight").tone).toBe("planned");
     expect(getLaunchStatusMeta("Deployed")).toEqual({ label: "载荷已部署", tone: "success" });

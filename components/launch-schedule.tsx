@@ -10,7 +10,6 @@ import type { Launch, LaunchResult } from "@/lib/types";
 type Filters = { q: string; provider: string };
 type TimelineGroup = {
   key: string;
-  date: ReturnType<typeof formatBeijingDate>;
   launches: Launch[];
 };
 
@@ -31,11 +30,23 @@ function makeTimeline(launches: Launch[]) {
       ? new Date(launch.launch_time_utc).toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" })
       : "tbd";
     if (!groups.has(key)) {
-      groups.set(key, { key, date: formatBeijingDate(launch.launch_time_utc), launches: [] });
+      groups.set(key, { key, launches: [] });
     }
     groups.get(key)?.launches.push(launch);
   }
   return [...groups.values()];
+}
+
+function formatTimelineDate(value: string | null) {
+  if (!value) return "日期待定";
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date(value));
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return month && day ? `${month}月${day}日` : "日期待定";
 }
 
 function relativeDay(key: string) {
@@ -71,18 +82,6 @@ function shortProvider(provider: string) {
     "Agency for Defense Development": "韩国 ADD",
   };
   return known[provider] || (provider.length > 22 ? `${provider.slice(0, 20)}…` : provider);
-}
-
-function statusTone(launch: Launch) {
-  return getLaunchStatusMeta(launch.status, launch.status_cn).tone;
-}
-
-function monthLabel(date = new Date()) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "long",
-  }).format(date);
 }
 
 function UtcClock() {
@@ -240,7 +239,6 @@ function LaunchCard({ launch }: { launch: Launch }) {
         </div>
       </div>
       <div className={`launch-state state-${tone}`}>
-        <i />
         <span>{status.label}</span>
       </div>
     </a>
@@ -356,20 +354,6 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
 
       <section className="dashboard" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
-        <div className="calendar-tools" id="schedule">
-          <div className="month-switcher">
-            <button type="button" aria-label="上一个月">‹</button>
-            <strong>{monthLabel()}</strong>
-            <span>· {new Intl.DateTimeFormat("en", { month: "short", timeZone: "Asia/Shanghai" }).format(new Date()).toUpperCase()}</span>
-            <button type="button" aria-label="下一个月">›</button>
-          </div>
-          <button className="today-button" type="button">今天 · {new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai" }).format(new Date())}</button>
-          <div className="view-toggle" aria-label="日历视图">
-            <button className="active" type="button">⌘ 时间线</button>
-            <button type="button">▦ 月</button>
-          </div>
-        </div>
-
         <div className="filters-row" id="agencies">
           <div className="agency-filters">
             <button className={!filters.provider ? "active" : ""} type="button" onClick={() => selectProvider("")}>
@@ -387,18 +371,9 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
               </button>
             ))}
           </div>
-          <form className="schedule-search" onSubmit={submitSearch}>
-            <span aria-hidden="true">⌕</span>
-            <input
-              value={filters.q}
-              onChange={(event) => setFilters((current) => ({ ...current, q: event.target.value }))}
-              placeholder="搜索任务 / 火箭 / 机构…"
-              aria-label="在本月日历中搜索发射"
-            />
-          </form>
         </div>
 
-        <div className="content-grid">
+        <div className="content-grid" id="schedule">
           <section className="timeline" aria-label="发射时间线">
             {error ? (
               <div className="state-card error-state">发射日程暂时不可用，请稍后重试。</div>
@@ -408,10 +383,9 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
               timeline.map((group) => (
                 <div className="timeline-group" key={group.key}>
                   <aside className="date-rail">
-                    <strong>{group.date.day}</strong>
-                    <span>{group.date.month}</span>
-                    <small>{relativeDay(group.key)}</small>
-                    <em>{group.launches.length} 场{group.launches.every((launch) => statusTone(launch) === "success") ? " · 已结束" : ""}</em>
+                    <time dateTime={group.key === "tbd" ? undefined : group.key}>
+                      {formatTimelineDate(group.launches[0]?.launch_time_utc ?? null)}
+                    </time>
                     <i />
                   </aside>
                   <div className="event-stack">

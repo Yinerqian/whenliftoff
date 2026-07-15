@@ -168,7 +168,7 @@ a { color: inherit; text-decoration: none; }
 .view-toggle button { height: 36px; padding: 0 12px; border: 0; border-radius: 0; color: var(--muted); font-size: 11px; }
 .view-toggle button.active { color: var(--accent); background: var(--accent-soft); }
 
-.filters-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 12px; }
+.filters-row { display: flex; align-items: center; gap: 18px; margin-top: 0; }
 .agency-filters { display: flex; align-items: center; gap: 7px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .agency-filters::-webkit-scrollbar { display: none; }
 .agency-filters button { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 10px; color: var(--muted); font-size: 11px; white-space: nowrap; }
@@ -179,15 +179,12 @@ a { color: inherit; text-decoration: none; }
 
 .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 318px; gap: 27px; align-items: start; margin-top: 30px; padding-top: 1px; border-top: 1px solid var(--line); }
 .timeline { min-width: 0; }
-.timeline-group { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding-bottom: 24px; }
-.date-rail { position: relative; display: grid; align-content: start; padding: 2px 22px 0 0; color: var(--muted); text-align: center; }
-.date-rail::after { content: ""; position: absolute; top: 30px; right: 0; bottom: -27px; width: 1px; background: var(--line-strong); }
+.timeline-group { position: relative; display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 14px; padding-bottom: 24px; }
+.date-rail { position: relative; display: grid; align-content: start; justify-items: end; padding: 8px 16px 0 0; color: var(--muted); }
+.date-rail::after { content: ""; position: absolute; top: 22px; right: 0; bottom: -27px; width: 1px; background: var(--line-strong); }
 .timeline-group:last-of-type .date-rail::after { display: none; }
-.date-rail > i { position: absolute; top: 16px; right: -6px; z-index: 2; width: 12px; height: 12px; border: 2px solid var(--surface); border-radius: 50%; background: var(--paper); box-shadow: 0 0 0 1px var(--line-strong); }
-.date-rail strong { color: var(--muted); font: 500 36px/1 "DM Mono", monospace; letter-spacing: -.08em; }
-.date-rail span { margin-top: 6px; font: 9px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
-.date-rail small { margin-top: 9px; color: var(--faint); font-size: 9px; }
-.date-rail em { margin-top: 11px; color: var(--faint); font-size: 9px; font-style: normal; }
+.date-rail > i { position: absolute; top: 17px; right: -5px; z-index: 2; width: 10px; height: 10px; border: 2px solid var(--surface); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, var(--line-strong)); }
+.date-rail time { position: relative; z-index: 1; display: inline-flex; align-items: center; min-height: 28px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--blue); background: var(--surface); box-shadow: 0 4px 12px rgba(22, 38, 66, .05); font: 700 11px/1 "Space Grotesk", "Noto Sans SC", sans-serif; white-space: nowrap; }
 .event-stack { display: grid; gap: 9px; min-width: 0; }
 .today-divider { margin: 0 0 2px -16px; padding: 5px 13px; border-left: 2px solid var(--accent); color: var(--accent); background: linear-gradient(90deg, var(--accent-soft), transparent); font-size: 10px; font-weight: 600; }
 .launch-row {
@@ -214,8 +211,7 @@ a { color: inherit; text-decoration: none; }
 .launch-info-grid > span { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .launch-info-icon { flex: 0 0 auto; width: 14px; height: 14px; color: color-mix(in srgb, var(--muted) 78%, var(--blue)); }
 .launch-schedule-time .launch-info-icon { color: var(--blue); }
-.launch-state { position: absolute; top: 15px; right: 16px; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, currentColor 9%, var(--surface)); font-size: 10px; font-weight: 600; white-space: nowrap; }
-.launch-state i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.launch-state { position: absolute; top: 15px; right: 16px; display: flex; align-items: center; padding: 6px 10px; border: 1px solid color-mix(in srgb, currentColor 30%, var(--surface)); border-radius: 8px; background: color-mix(in srgb, currentColor 13%, var(--surface)); box-shadow: 0 5px 16px color-mix(in srgb, currentColor 13%, transparent); font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; }
 .state-success { color: var(--green); }
 .state-planned { color: var(--accent); }
 .state-pending { color: var(--gold); }
@@ -290,10 +286,9 @@ a { color: inherit; text-decoration: none; }
   .upcoming-visual { min-height: 220px; }
   .upcoming-body { padding: 18px 16px; }
   .next-list { display: none; }
-  .timeline-group { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
-  .date-rail { padding-right: 15px; }
-  .date-rail strong { font-size: 28px; }
-  .date-rail span, .date-rail small, .date-rail em { font-size: 8px; }
+  .timeline-group { grid-template-columns: 68px minmax(0, 1fr); gap: 10px; }
+  .date-rail { padding-right: 12px; }
+  .date-rail time { padding-inline: 6px; font-size: 10px; }
   .launch-row { grid-template-columns: 122px minmax(0, 1fr); min-height: 144px; }
   .launch-copy { gap: 10px; padding: 16px 9px 14px 16px; }
   .launch-copy h3 { font-size: 13px; }
@@ -313,11 +308,10 @@ a { color: inherit; text-decoration: none; }
   .content-grid { margin-top: 19px; }
   .upcoming-card { display: block; }
   .upcoming-visual { min-height: 170px; }
-  .timeline-group { grid-template-columns: 45px minmax(0, 1fr); gap: 7px; }
-  .date-rail { padding-right: 9px; }
+  .timeline-group { grid-template-columns: 58px minmax(0, 1fr); gap: 7px; }
+  .date-rail { padding-right: 10px; }
   .date-rail > i { right: -5px; }
-  .date-rail strong { font-size: 23px; }
-  .date-rail span { display: none; }
+  .date-rail time { min-height: 25px; padding: 4px 5px; font-size: 9px; }
   .date-rail::after { right: 0; }
   .launch-row { grid-template-columns: 96px minmax(0, 1fr); min-height: 158px; }
   .launch-copy { gap: 9px; padding: 39px 6px 12px 12px; }
@@ -601,13 +595,18 @@ a { color: inherit; text-decoration: none; }
 }
 
 .app-shell:not(.detail-shell) .upcoming-card {
-  color: #ffffff;
-  background: var(--dark-card);
-  box-shadow: 0 24px 60px rgba(7, 22, 51, .18);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 20px 46px rgba(7, 22, 51, .10);
 }
 
 .app-shell:not(.detail-shell) .upcoming-visual {
   background-color: var(--blue);
+}
+
+.app-shell:not(.detail-shell) .upcoming-visual::after {
+  background: linear-gradient(transparent, var(--surface));
 }
 
 .app-shell:not(.detail-shell) .upcoming-meta,
@@ -615,10 +614,40 @@ a { color: inherit; text-decoration: none; }
 .app-shell:not(.detail-shell) .mini-time span,
 .app-shell:not(.detail-shell) .tbd-countdown,
 .app-shell:not(.detail-shell) .upcoming-footer {
-  color: #8591a7;
+  color: var(--muted);
 }
 
 .app-shell:not(.detail-shell) .mini-countdown {
+  border-color: var(--line);
+}
+
+.app-shell:not(.detail-shell)[data-theme="dark"] .date-rail time {
+  border-color: #385078;
+  color: #eef4ff;
+  background: #17325f;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .2);
+}
+
+.app-shell:not(.detail-shell)[data-theme="dark"] .upcoming-card {
+  border-color: #1f3760;
+  color: #ffffff;
+  background: var(--dark-card);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+
+.app-shell:not(.detail-shell)[data-theme="dark"] .upcoming-visual::after {
+  background: linear-gradient(transparent, var(--dark-card));
+}
+
+.app-shell:not(.detail-shell)[data-theme="dark"] .upcoming-meta,
+.app-shell:not(.detail-shell)[data-theme="dark"] .t-minus,
+.app-shell:not(.detail-shell)[data-theme="dark"] .mini-time span,
+.app-shell:not(.detail-shell)[data-theme="dark"] .tbd-countdown,
+.app-shell:not(.detail-shell)[data-theme="dark"] .upcoming-footer {
+  color: #8591a7;
+}
+
+.app-shell:not(.detail-shell)[data-theme="dark"] .mini-countdown {
   border-color: rgba(230, 235, 243, .16);
 }
 
