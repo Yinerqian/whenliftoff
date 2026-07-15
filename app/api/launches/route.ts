@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
       status: params.get("status") ?? undefined,
       provider: params.get("provider") ?? undefined,
       country: params.get("country") ?? undefined,
+      currentMonth: params.get("month") === "current",
+      futureAfterCurrentMonth: params.get("scope") === "future",
       from: params.get("from") ?? undefined,
       to: params.get("to") ?? undefined,
       cursor: params.get("cursor") ?? undefined,

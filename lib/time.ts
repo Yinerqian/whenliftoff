@@ -60,3 +60,18 @@ export function countdownParts(value: string | null, now = Date.now()) {
     seconds: totalSeconds % 60,
   };
 }
+
+export function beijingMonthRange(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const beijingOffsetMs = 8 * 60 * 60 * 1000;
+  return {
+    from: new Date(Date.UTC(year, month - 1, 1) - beijingOffsetMs).toISOString(),
+    to: new Date(Date.UTC(year, month, 1) - beijingOffsetMs).toISOString(),
+  };
+}

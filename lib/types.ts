@@ -28,6 +28,8 @@ export type LaunchQuery = {
   status?: string;
   provider?: string;
   country?: string;
+  currentMonth?: boolean;
+  futureAfterCurrentMonth?: boolean;
   from?: string;
   to?: string;
   cursor?: string;
@@ -39,6 +41,8 @@ export type LaunchResult = {
   nextCursor: string | null;
   lastSyncedAt: string | null;
   providers: string[];
+  monthTotal: number;
+  providerCounts: Array<{ provider: string; count: number }>;
 };
 
 export type LaunchLibraryLaunch = {

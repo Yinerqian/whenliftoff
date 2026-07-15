@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import { SiteHeader } from "@/components/site-header";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { countdownParts, formatBeijingClock, formatBeijingDate } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
 type Filters = { q: string; provider: string };
+type LaunchScope = "month" | "future";
 type TimelineGroup = {
   key: string;
   launches: Launch[];
@@ -15,8 +17,10 @@ type TimelineGroup = {
 
 const initialFilters: Filters = { q: "", provider: "" };
 
-function requestParams(filters: Filters, cursor?: string | null) {
+function requestParams(filters: Filters, cursor?: string | null, scope: LaunchScope = "month") {
   const params = new URLSearchParams({ limit: "18" });
+  if (scope === "month") params.set("month", "current");
+  else params.set("scope", "future");
   if (filters.q.trim()) params.set("q", filters.q.trim());
   if (filters.provider) params.set("provider", filters.provider);
   if (cursor) params.set("cursor", cursor);
@@ -82,36 +86,6 @@ function shortProvider(provider: string) {
     "Agency for Defense Development": "韩国 ADD",
   };
   return known[provider] || (provider.length > 22 ? `${provider.slice(0, 20)}…` : provider);
-}
-
-function UtcClock() {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    setNow(new Date());
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (!now) return <span className="utc-clock-placeholder">UTC</span>;
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "UTC",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const time = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(now);
-  return (
-    <span className="utc-clock" aria-label={`协调世界时 ${date} ${time}`}>
-      <span>• UTC</span>
-      <strong>{date}</strong>
-      <b>{time}</b>
-    </span>
-  );
 }
 
 function Countdown({ value }: { value: string | null }) {
@@ -267,12 +241,13 @@ function UpcomingCard({ launch }: { launch: Launch | null }) {
   );
 }
 
-export function LaunchSchedule({ initial, initialError = false }: { initial: LaunchResult; initialError?: boolean }) {
-  const [filters, setFilters] = useState<Filters>(initialFilters);
+export function LaunchSchedule({ initial, initialError = false, initialSearch = "" }: { initial: LaunchResult; initialError?: boolean; initialSearch?: string }) {
+  const [filters, setFilters] = useState<Filters>({ ...initialFilters, q: initialSearch });
   const [result, setResult] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [providerExpanded, setProviderExpanded] = useState(false);
 
   const timeline = useMemo(() => makeTimeline(result.items), [result.items]);
   const hero = useMemo(
@@ -282,25 +257,24 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
     [result.items],
   );
   const providerCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    result.items.forEach((launch) => {
-      if (launch.provider) counts.set(launch.provider, (counts.get(launch.provider) || 0) + 1);
-    });
-    return counts;
-  }, [result.items]);
+    return new Map(result.providerCounts.map(({ provider, count }) => [provider, count]));
+  }, [result.providerCounts]);
+  const showLoadMore = Boolean(result.nextCursor) || Boolean(filters.provider && !providerExpanded);
 
-  async function load(nextFilters = filters, cursor?: string | null, append = false) {
+  async function load(nextFilters = filters, cursor?: string | null, append = false, scope: LaunchScope = "month") {
     setLoading(true);
     setError(false);
-    const params = requestParams(nextFilters, cursor);
+    const params = requestParams(nextFilters, cursor, scope);
     try {
       const response = await fetch(`/api/launches?${params.toString()}`);
       if (!response.ok) throw new Error("无法加载日程");
       const data = (await response.json()) as LaunchResult;
       setResult((current) => append ? { ...data, items: [...current.items, ...data.items] } : data);
-      if (!append) window.history.replaceState(null, "", `/?${params.toString()}`);
+      if (!append) window.history.replaceState(null, "", `/launches?${params.toString()}`);
+      return true;
     } catch {
       setError(true);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -308,70 +282,66 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
 
   function selectProvider(provider: string) {
     const next = { ...filters, provider };
+    setProviderExpanded(false);
     setFilters(next);
     void load(next);
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setProviderExpanded(false);
     void load();
+  }
+
+  async function loadMore() {
+    if (result.nextCursor) {
+      await load(filters, result.nextCursor, true, providerExpanded ? "future" : "month");
+      return;
+    }
+    if (filters.provider && !providerExpanded) {
+      const loaded = await load(filters, undefined, true, "future");
+      if (loaded) setProviderExpanded(true);
+    }
   }
 
   return (
     <main className="app-shell" data-theme={theme}>
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="When Liftoff 首页">
-          <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority />
-          <span>when<b>liftoff</b></span>
-        </a>
-        <nav className="primary-nav" aria-label="主导航">
-          <a href="#overview">首页</a>
-          <a href="#schedule" className="active">发射日程</a>
-          <a href="#agencies">航天机构</a>
-          <a href="#rockets">火箭</a>
-          <a href="#news">专题</a>
-        </nav>
-        <form className="top-search" onSubmit={submitSearch}>
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={filters.q}
-            onChange={(event) => setFilters((current) => ({ ...current, q: event.target.value }))}
-            placeholder="搜索火箭、任务、机构…"
-            aria-label="搜索火箭、任务或机构"
-          />
-          <kbd>⌘K</kbd>
-        </form>
-        <UtcClock />
-        <button
-          className="theme-toggle"
-          type="button"
-          onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
-          aria-label="切换主题"
-        >
-          ◐
-        </button>
-      </header>
+      <SiteHeader
+        active="launches"
+        theme={theme}
+        onThemeToggle={() => setTheme((current) => current === "light" ? "dark" : "light")}
+        searchValue={filters.q}
+        onSearchValueChange={(q) => setFilters((current) => ({ ...current, q }))}
+        onSearchSubmit={submitSearch}
+      />
 
       <section className="dashboard" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
-        <div className="filters-row" id="agencies">
-          <div className="agency-filters">
-            <button className={!filters.provider ? "active" : ""} type="button" onClick={() => selectProvider("")}>
-              全部机构 <span>{result.items.length}</span>
+        <section className="filters-row" id="agencies" aria-label="发射机构分类">
+          <div className="agency-filters" role="tablist" aria-label="发射机构">
+            <button
+              className={!filters.provider ? "active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={!filters.provider}
+              onClick={() => selectProvider("")}
+            >
+              全部机构 <span>{result.monthTotal}</span>
             </button>
-            {[...providerCounts.entries()].slice(0, 6).map(([provider, count], index) => (
+            {[...providerCounts.entries()].slice(0, 6).map(([provider, count]) => (
               <button
                 className={filters.provider === provider ? "active" : ""}
                 type="button"
+                role="tab"
+                aria-selected={filters.provider === provider}
                 key={provider}
                 onClick={() => selectProvider(provider)}
               >
-                <i style={{ background: ["#232323", "#e85516", "#16a67a", "#324b75", "#b18c00", "#73736a"][index] }} />
                 {shortProvider(provider)} <span>{count}</span>
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
         <div className="content-grid" id="schedule">
           <section className="timeline" aria-label="发射时间线">
@@ -397,8 +367,8 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
                 </div>
               ))
             )}
-            {result.nextCursor && !error && (
-              <button className="load-more" type="button" onClick={() => void load(filters, result.nextCursor, true)} disabled={loading}>
+            {showLoadMore && !error && (
+              <button className="load-more" type="button" onClick={() => void loadMore()} disabled={loading}>
                 {loading ? "正在加载…" : "加载更多发射任务"}
               </button>
             )}

@@ -1,5 +1,6 @@
 import { fetchLaunchById, toLaunchRecord } from "@/lib/launch-library";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { beijingMonthRange } from "@/lib/time";
 import type { Launch, LaunchQuery, LaunchResult } from "@/lib/types";
 
 const DEFAULT_LIMIT = 9;
@@ -45,8 +46,17 @@ export async function searchLaunches(query: LaunchQuery): Promise<LaunchResult> 
   if (query.status) request = request.eq("status", query.status.slice(0, 40));
   if (query.provider) request = request.eq("provider", query.provider.slice(0, 100));
   if (query.country) request = request.eq("country_code", query.country.slice(0, 3).toUpperCase());
-  if (query.from) request = request.gte("launch_time_utc", query.from);
-  if (query.to) request = request.lte("launch_time_utc", query.to);
+  const monthRange = beijingMonthRange();
+  if (query.currentMonth) {
+    request = request
+      .gte("launch_time_utc", monthRange.from)
+      .lt("launch_time_utc", monthRange.to);
+  } else if (query.futureAfterCurrentMonth) {
+    request = request.gte("launch_time_utc", monthRange.to);
+  } else {
+    if (query.from) request = request.gte("launch_time_utc", query.from);
+    if (query.to) request = request.lte("launch_time_utc", query.to);
+  }
 
   const { data, error, count } = await request
     .order("launch_time_utc", { ascending: true, nullsFirst: false })
@@ -63,6 +73,18 @@ export async function searchLaunches(query: LaunchQuery): Promise<LaunchResult> 
     .order("provider", { ascending: true })
     .limit(500);
   if (providerError) throw providerError;
+  const { data: monthlyProviderRows, error: monthlyProviderError, count: monthTotal } = await supabase
+    .from("launches")
+    .select("provider", { count: "exact" })
+    .gte("launch_time_utc", monthRange.from)
+    .lt("launch_time_utc", monthRange.to)
+    .order("launch_time_utc", { ascending: true })
+    .limit(1000);
+  if (monthlyProviderError) throw monthlyProviderError;
+  const monthlyCounts = new Map<string, number>();
+  (monthlyProviderRows ?? []).forEach((row) => {
+    if (row.provider) monthlyCounts.set(row.provider, (monthlyCounts.get(row.provider) ?? 0) + 1);
+  });
   const { data: latest } = await supabase
     .from("sync_runs")
     .select("completed_at")
@@ -77,6 +99,8 @@ export async function searchLaunches(query: LaunchQuery): Promise<LaunchResult> 
     nextCursor: offset + items.length < total ? encodeOffset(offset + items.length) : null,
     lastSyncedAt: latest?.completed_at ?? null,
     providers: [...new Set((providerRows ?? []).map((row) => row.provider).filter((provider): provider is string => Boolean(provider)))],
+    monthTotal: monthTotal ?? monthlyProviderRows?.length ?? 0,
+    providerCounts: [...monthlyCounts].map(([provider, count]) => ({ provider, count })),
   };
 }
 

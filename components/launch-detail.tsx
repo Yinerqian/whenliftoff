@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { SiteHeader } from "@/components/site-header";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { formatBeijingClock, formatBeijingTime, formatUtcTime } from "@/lib/time";
@@ -41,19 +41,6 @@ function formatWindow(start: string | null, end: string | null) {
   return `${formatDate(start)} – ${formatBeijingClock(end)} CST · ${span}`;
 }
 
-function DetailUtcClock() {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    setNow(new Date());
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  if (!now) return <span className="utc-clock-placeholder">UTC</span>;
-  const date = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "2-digit", day: "2-digit" }).format(now);
-  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(now);
-  return <span className="utc-clock"><span>• UTC</span><strong>{date}</strong><b>{time}</b></span>;
-}
-
 function DataRow({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="detail-data-row"><span>{label}</span><strong>{children}</strong></div>;
 }
@@ -76,21 +63,11 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
 
   return (
     <main className="app-shell detail-shell" data-theme={theme}>
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="When Liftoff 首页"><Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority /><span>when<b>liftoff</b></span></a>
-        <nav className="primary-nav" aria-label="主导航">
-          <a href="/">首页</a>
-          <a className="active" href="/">发射日程</a>
-          <a href="/#agencies">航天机构</a>
-          <a href="/#rockets">火箭</a>
-          <a href="/#news">专题</a>
-        </nav>
-        <form className="top-search" action="/" method="get">
-          <span aria-hidden="true">⌕</span><input name="q" placeholder="搜索火箭、任务、机构…" aria-label="搜索" /><kbd>⌘K</kbd>
-        </form>
-        <DetailUtcClock />
-        <button className="theme-toggle" type="button" onClick={() => setTheme((value) => value === "light" ? "dark" : "light")} aria-label="切换主题">◐</button>
-      </header>
+      <SiteHeader
+        active="launches"
+        theme={theme}
+        onThemeToggle={() => setTheme((value) => value === "light" ? "dark" : "light")}
+      />
 
       <div className="detail-page">
         <div className={`mission-alert mission-alert-${tone}`}>
@@ -184,7 +161,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
               {!launch.webcast_url && !launch.source_url && <p>暂无公开任务源。</p>}
             </section>
 
-            <a className="back-link" href="/">← 返回发射日程</a>
+            <a className="back-link" href="/launches">← 返回发射日程</a>
           </aside>
         </div>
       </div>
