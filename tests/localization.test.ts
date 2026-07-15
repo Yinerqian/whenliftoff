@@ -5,6 +5,7 @@ describe("Launch Library localization", () => {
   it("uses PRD status labels", () => {
     expect(localizeStatus("Go", "Go")).toEqual({ status: "Go", status_cn: "计划发射" });
     expect(localizeStatus("TBD", "To Be Determined").status_cn).toBe("时间待定");
+    expect(localizeStatus("Deployed", "Payload Deployed").status_cn).toBe("载荷已部署");
   });
 
   it("renders known providers in Chinese", () => {

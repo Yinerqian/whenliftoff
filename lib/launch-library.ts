@@ -4,12 +4,12 @@ import type { Launch, LaunchLibraryLaunch } from "@/lib/types";
 
 export type UpstreamLaunchPage = { results: LaunchLibraryLaunch[] };
 
-export async function fetchUpcomingLaunches(): Promise<LaunchLibraryLaunch[]> {
-  const url = new URL("https://ll.thespacedevs.com/2.3.0/launches/upcoming/");
-  url.searchParams.set("limit", "100");
+async function fetchLaunchPage(path: "upcoming" | "previous", limit: number): Promise<LaunchLibraryLaunch[]> {
+  const url = new URL(`https://ll.thespacedevs.com/2.3.0/launches/${path}/`);
+  url.searchParams.set("limit", String(limit));
   url.searchParams.set("mode", "normal");
-  url.searchParams.set("ordering", "net");
-  url.searchParams.set("hide_recent_previous", "true");
+  url.searchParams.set("ordering", path === "upcoming" ? "net" : "-net");
+  if (path === "upcoming") url.searchParams.set("hide_recent_previous", "true");
   const headers: HeadersInit = { Accept: "application/json" };
   // LL2 accepts anonymous requests; deployments with a token can set this standard header.
   if (process.env.LL2_API_KEY) headers.Authorization = `Token ${process.env.LL2_API_KEY}`;
@@ -17,6 +17,14 @@ export async function fetchUpcomingLaunches(): Promise<LaunchLibraryLaunch[]> {
   if (!response.ok) throw new Error(`Launch Library request failed (${response.status}).`);
   const payload = await response.json() as UpstreamLaunchPage;
   return payload.results ?? [];
+}
+
+export function fetchUpcomingLaunches(): Promise<LaunchLibraryLaunch[]> {
+  return fetchLaunchPage("upcoming", 100);
+}
+
+export function fetchRecentLaunches(): Promise<LaunchLibraryLaunch[]> {
+  return fetchLaunchPage("previous", 24);
 }
 
 export async function fetchLaunchById(id: string): Promise<LaunchLibraryLaunch | null> {

@@ -1,7 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import { resolveLaunchImageUrl } from "@/lib/image";
+import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { countdownParts, formatBeijingClock, formatBeijingDate } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
@@ -72,11 +74,7 @@ function shortProvider(provider: string) {
 }
 
 function statusTone(launch: Launch) {
-  const status = `${launch.status} ${launch.status_cn}`.toLowerCase();
-  if (/success|成功/.test(status)) return "success";
-  if (/fail|failure|失利|失败/.test(status)) return "failed";
-  if (/hold|tbd|tbc|待定|确认/.test(status)) return "pending";
-  return "planned";
+  return getLaunchStatusMeta(launch.status, launch.status_cn).tone;
 }
 
 function monthLabel(date = new Date()) {
@@ -146,15 +144,80 @@ function Countdown({ value }: { value: string | null }) {
   );
 }
 
+type LaunchCardIconName = "agency" | "clock" | "globe" | "pin" | "rocket";
+
+function LaunchCardIcon({ name }: { name: LaunchCardIconName }) {
+  const shapes: Record<LaunchCardIconName, ReactNode> = {
+    agency: <><path d="M3 21h18" /><path d="M6 21V7l6-4v18" /><path d="M18 21V11l-6-3" /><path d="M9 9v1M9 13v1M9 17v1M15 13v1M15 17v1" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></>,
+    pin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
+    rocket: <><path d="M14.5 5.5C13 3.7 12 3 12 3s-1 0.7-2.5 2.5C7.8 7.6 7 10.2 7 13l5 3 5-3c0-2.8-.8-5.4-2.5-7.5Z" /><circle cx="12" cy="9" r="1.5" /><path d="M7.5 11 4 14v4l4-2M16.5 11l3.5 3v4l-4-2M10 17l2 4 2-4" /></>,
+  };
+  return (
+    <svg className="launch-info-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      {shapes[name]}
+    </svg>
+  );
+}
+
+function formatCardDate(value: string | null) {
+  if (!value) return "发射时间待确认";
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function LaunchCardCountdown({ value, hidden = false }: { value: string | null; hidden?: boolean }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const target = value ? new Date(value).getTime() : Number.NaN;
+    if (hidden || !Number.isFinite(target)) {
+      setNow(null);
+      return;
+    }
+
+    let timer: number | undefined;
+    const update = () => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= target && timer !== undefined) window.clearInterval(timer);
+    };
+
+    update();
+    if (Date.now() < target) timer = window.setInterval(update, 1000);
+    return () => {
+      if (timer !== undefined) window.clearInterval(timer);
+    };
+  }, [hidden, value]);
+
+  if (hidden || !value || now === null) return null;
+  const remaining = new Date(value).getTime() - now;
+  if (!Number.isFinite(remaining) || remaining <= 0) return null;
+  const totalSeconds = Math.ceil(remaining / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  const valueLabel = `${days ? `${days}天 ` : ""}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return (
+    <span className="launch-countdown" aria-label={`距离发射${valueLabel}`}>
+      T− {valueLabel}
+    </span>
+  );
+}
+
 function LaunchCard({ launch }: { launch: Launch }) {
   const imageUrl = resolveLaunchImageUrl(launch.image_url);
-  const tone = statusTone(launch);
+  const status = getLaunchStatusMeta(launch.status, launch.status_cn);
+  const tone = status.tone;
   return (
     <a className="launch-row" href={`/launches/${launch.external_id}`}>
-      <div className="launch-time">
-        <strong>{formatBeijingClock(launch.launch_time_utc)}</strong>
-        <span>CST</span>
-      </div>
       <div
         className="launch-thumb"
         style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
@@ -164,20 +227,22 @@ function LaunchCard({ launch }: { launch: Launch }) {
         <h3>
           {launch.name_cn || launch.name}
           <span className="flag">{countryFlag(launch.country_code)}</span>
-          <span className="rocket-dot">· 🚀</span>
-          <span className="rocket-name">{launch.rocket_name || "运载火箭待确认"}</span>
         </h3>
-        <p>
-          <span>▱ {launch.provider_cn || launch.provider || "机构待确认"}</span>
-          <span>⌾ {launch.pad || launch.location_cn || launch.location || "地点待确认"}</span>
-          <span>⌁ {launch.location_cn || launch.location || "轨道信息待确认"}</span>
-        </p>
+        <div className="launch-schedule-line">
+          <span className="launch-schedule-time"><LaunchCardIcon name="clock" />{formatCardDate(launch.launch_time_utc)} CST</span>
+          <LaunchCardCountdown value={launch.launch_time_utc} hidden={tone === "success" || tone === "failed"} />
+        </div>
+        <div className="launch-info-grid">
+          <span title={launch.provider_cn || launch.provider || "机构待确认"}><LaunchCardIcon name="agency" />{launch.provider_cn || launch.provider || "机构待确认"}</span>
+          <span title={launch.rocket_name || "运载火箭待确认"}><LaunchCardIcon name="rocket" />{launch.rocket_name || "运载火箭待确认"}</span>
+          <span title={launch.pad || "发射台待确认"}><LaunchCardIcon name="pin" />{launch.pad || "发射台待确认"}</span>
+          <span title={launch.location_cn || launch.location || "地点待确认"}><LaunchCardIcon name="globe" />{launch.location_cn || launch.location || "地点待确认"}</span>
+        </div>
       </div>
       <div className={`launch-state state-${tone}`}>
         <i />
-        <span>{launch.status_cn || "计划发射"}</span>
+        <span>{status.label}</span>
       </div>
-      <span className="row-chevron" aria-hidden="true">›</span>
     </a>
   );
 }
@@ -258,7 +323,7 @@ export function LaunchSchedule({ initial, initialError = false }: { initial: Lau
     <main className="app-shell" data-theme={theme}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="When Liftoff 首页">
-          <span className="brand-orbit" aria-hidden="true" />
+          <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority />
           <span>when<b>liftoff</b></span>
         </a>
         <nav className="primary-nav" aria-label="主导航">

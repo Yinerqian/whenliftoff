@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { resolveLaunchImageUrl } from "@/lib/image";
+import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { formatBeijingClock, formatBeijingTime, formatUtcTime } from "@/lib/time";
 import type { Launch } from "@/lib/types";
 
@@ -16,14 +18,6 @@ const flightTimeline = [
   { time: "T+09:00", title: "二级发动机关机", en: "SECO", detail: "二级进入预定滑行阶段" },
   { time: "T+60:00", title: "载荷部署", en: "Payload Deploy", detail: "任务载荷进入目标轨道" },
 ];
-
-function statusTone(launch: Launch) {
-  const value = `${launch.status} ${launch.status_cn}`.toLowerCase();
-  if (/success|成功/.test(value)) return "success";
-  if (/fail|failure|失败|失利/.test(value)) return "failed";
-  if (/tbd|tbc|待定|确认/.test(value)) return "pending";
-  return "planned";
-}
 
 function formatDate(value: string | null, withYear = false) {
   if (!value) return "时间待定";
@@ -66,7 +60,8 @@ function DataRow({ label, children }: { label: string; children: React.ReactNode
 
 export function LaunchDetail({ launch }: { launch: Launch }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const tone = statusTone(launch);
+  const status = getLaunchStatusMeta(launch.status, launch.status_cn);
+  const tone = status.tone;
   const image = resolveLaunchImageUrl(launch.image_url) || "/assets/whenliftoff/detail_rocket.jpg";
   const name = launch.name_cn || launch.name;
   const provider = launch.provider_cn || launch.provider || "机构待确认";
@@ -74,15 +69,15 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
   const description = launch.mission_description_cn || launch.mission_description || "本任务的详细载荷资料仍在整理中。页面将持续同步任务窗口、运载火箭和发射场信息。";
   const successful = tone === "success";
   const updates = useMemo(() => [
-    { time: launch.synced_at, title: "任务数据已同步", text: `任务状态更新为“${launch.status_cn || "待确认"}”。` },
+    { time: launch.synced_at, title: "任务数据已同步", text: `任务状态更新为“${status.label}”。` },
     { time: launch.api_updated_at, title: "发射窗口更新", text: `${formatUtcTime(launch.launch_time_utc)} · ${formatBeijingTime(launch.launch_time_utc)}` },
     { time: launch.launch_time_utc, title: successful ? "任务结果记录" : "当前目标发射时间", text: successful ? "任务已按数据源记录完成，载荷进入后续任务阶段。" : "发射时间可能受天气、技术状态与空域安排影响。" },
-  ].filter((item) => item.time), [launch, successful]);
+  ].filter((item) => item.time), [launch, status.label, successful]);
 
   return (
     <main className="app-shell detail-shell" data-theme={theme}>
       <header className="topbar">
-        <a className="brand" href="/" aria-label="When Liftoff 首页"><span className="brand-orbit" aria-hidden="true" /><span>when<b>liftoff</b></span></a>
+        <a className="brand" href="/" aria-label="When Liftoff 首页"><Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority /><span>when<b>liftoff</b></span></a>
         <nav className="primary-nav" aria-label="主导航">
           <a href="/">首页</a>
           <a className="active" href="/">发射日程</a>
@@ -100,7 +95,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
       <div className="detail-page">
         <div className={`mission-alert mission-alert-${tone}`}>
           <div className="mission-alert-icon">{successful ? "✓" : tone === "failed" ? "×" : "↑"}</div>
-          <div><strong>{successful ? "任务成功" : launch.status_cn || "任务状态"}</strong><span>{successful ? "载荷已完成部署入轨。" : "正在等待新的任务状态更新。"}</span></div>
+          <div><strong>{successful ? "任务成功" : status.label}</strong><span>{successful ? "载荷已完成部署入轨。" : "正在等待新的任务状态更新。"}</span></div>
           <div className="mission-alert-time"><strong>{formatBeijingClock(launch.launch_time_utc)}</strong><span>{formatDate(launch.launch_time_utc).split(" ")[0]} CST</span></div>
           {launch.webcast_url && <a href={launch.webcast_url} target="_blank" rel="noreferrer">▶ {successful ? "录播" : "直播"}</a>}
         </div>
@@ -114,7 +109,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
             </div>
 
             <div className="mission-hero" style={{ backgroundImage: `url("${image}")` }}>
-              <span className={`hero-status hero-status-${tone}`}>{launch.status_cn || "待确认"}</span>
+              <span className={`hero-status hero-status-${tone}`}>{status.label}</span>
               <div className="hero-caption"><span>{provider}</span><strong>{launch.rocket_name || name}</strong></div>
             </div>
 
@@ -163,7 +158,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
               <DataRow label="发射场">{location}</DataRow>
               <DataRow label="目标轨道">待确认</DataRow>
               <DataRow label="发射窗口">{formatWindow(launch.launch_time_utc, launch.window_end_utc)}</DataRow>
-              <DataRow label="状态"><span className={`data-status data-status-${tone}`}>● {launch.status_cn || "待确认"}</span></DataRow>
+              <DataRow label="状态"><span className={`data-status data-status-${tone}`}>● {status.label}</span></DataRow>
             </section>
 
             <section className="detail-panel location-panel">

@@ -1,4 +1,4 @@
-import { fetchUpcomingLaunches, toLaunchRecord } from "@/lib/launch-library";
+import { fetchRecentLaunches, fetchUpcomingLaunches, toLaunchRecord } from "@/lib/launch-library";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { translateLaunch, translationHash } from "@/lib/translation";
 
@@ -13,7 +13,15 @@ export async function syncLaunches() {
   if (runError) throw runError;
 
   try {
-    const sourceLaunches = await fetchUpcomingLaunches();
+    const [upcoming, recent] = await Promise.all([fetchUpcomingLaunches(), fetchRecentLaunches()]);
+    const recentIds = recent.map((launch) => launch.id);
+    const { data: knownRecent, error: recentLookupError } = recentIds.length
+      ? await supabase.from("launches").select("external_id").in("external_id", recentIds)
+      : { data: [], error: null };
+    if (recentLookupError) throw recentLookupError;
+    const knownRecentIds = new Set((knownRecent ?? []).map((launch) => launch.external_id));
+    const recentToRefresh = recent.filter((launch) => knownRecentIds.has(launch.id));
+    const sourceLaunches = [...new Map([...upcoming, ...recentToRefresh].map((launch) => [launch.id, launch])).values()];
     let translated = 0;
     for (const source of sourceLaunches) {
       const record = toLaunchRecord(source);
