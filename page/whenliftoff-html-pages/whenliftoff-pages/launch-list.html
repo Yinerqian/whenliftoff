@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>发射日程 - whenliftoff</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="site">
+    <header class="header">
+      <a class="logo" href="launch-list.html" aria-label="whenliftoff 首页">
+        <span class="logo-mark">↗</span>
+        <span class="latin">when<span class="orange">liftoff</span></span>
+      </a>
+      <nav class="nav" aria-label="主导航">
+        <a href="launch-list.html">首页</a>
+        <a href="launch-list.html" class="active">发射日程</a>
+        <a href="news-list.html">航天新闻</a>
+        <a href="#">发射机构</a>
+        <a href="#">关于本站</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-link" href="#" aria-label="搜索">⌕</a>
+        <span class="lang">◎ 简体中文⌄</span>
+      </div>
+    </header>
+
+    <section class="section launch-hero">
+      <div class="hero-copy">
+        <h1>下一次升空</h1>
+        <p>追踪全球火箭发射与太空探索</p>
+        <div class="kicker" style="margin-top:18px;">北京时间</div>
+        <div class="countdown" aria-label="下一次发射倒计时">
+          <div class="time-block"><strong class="num">01</strong><span>天</span></div>
+          <div class="time-block"><strong class="num">01</strong><span>时</span></div>
+          <div class="time-block"><strong class="num">45</strong><span>分</span></div>
+          <div class="time-block"><strong class="num">32</strong><span>秒</span></div>
+        </div>
+        <div class="pill-row" aria-label="发射筛选">
+          <a class="pill active" href="#">全部</a>
+          <a class="pill" href="#">即将发射</a>
+          <a class="pill latin" href="#">SpaceX</a>
+          <a class="pill" href="#">中国航天</a>
+          <a class="pill" href="#">美国航天</a>
+          <a class="pill" href="#">更多筛选⌄</a>
+        </div>
+      </div>
+      <div aria-hidden="true"></div>
+    </section>
+
+    <section class="section" style="padding-top:36px;">
+      <div class="launch-cards">
+        <article class="card launch-card">
+          <div class="image" style="background-image:url('assets/card_launch_1.jpg')"><span class="status">即将发射</span></div>
+          <div class="body">
+            <h3><span class="latin">Starlink</span> <span class="num">6-65</span></h3>
+            <p><span class="latin">Falcon</span> <span class="num">9</span> <span class="latin">Block</span> <span class="num">5</span></p>
+            <div class="meta-line">◷ <span class="num">05月24日 20:15</span>（北京时间）</div>
+            <div class="meta-line">⌖ 美国·佛罗里达 LC-39A</div>
+            <div class="mini-count"><span class="num">01天01时45分32秒</span></div>
+          </div>
+        </article>
+
+        <article class="card launch-card">
+          <div class="image" style="background-image:url('assets/card_launch_2.jpg')"><span class="status">即将发射</span></div>
+          <div class="body">
+            <h3>神舟二十号载人飞船</h3>
+            <p>长征二号F 运载火箭</p>
+            <div class="meta-line">◷ <span class="num">05月26日 09:30</span>（北京时间）</div>
+            <div class="meta-line">⌖ 中国·酒泉卫星发射中心</div>
+            <div class="mini-count"><span class="num">02天10时00分47秒</span></div>
+          </div>
+        </article>
+
+        <article class="card launch-card">
+          <div class="image" style="background-image:url('assets/card_launch_3.jpg')"><span class="status blue">计划发射</span></div>
+          <div class="body">
+            <h3><span class="latin">Transporter</span>-<span class="num">12</span></h3>
+            <p><span class="latin">Falcon</span> <span class="num">9</span> <span class="latin">Block</span> <span class="num">5</span></p>
+            <div class="meta-line">◷ <span class="num">05月27日 15:00</span>（北京时间）</div>
+            <div class="meta-line">⌖ 美国·加州范登堡 SLC-4E</div>
+            <div class="mini-count" style="color:var(--blue);background:#eef4ff;"><span class="num">03天15时30分17秒</span></div>
+          </div>
+        </article>
+      </div>
+      <a class="center-link" href="launch-detail.html">查看全部发射日程 →</a>
+    </section>
+  </main>
+</body>
+</html>
