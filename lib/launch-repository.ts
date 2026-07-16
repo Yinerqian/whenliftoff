@@ -1,7 +1,9 @@
+import { cache } from "react";
 import { fetchLaunchById, toLaunchRecord } from "@/lib/launch-library";
+import { toLaunchDetails } from "@/lib/launch-details";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { beijingMonthRange } from "@/lib/time";
-import type { Launch, LaunchQuery, LaunchResult } from "@/lib/types";
+import type { Launch, LaunchLibraryLaunch, LaunchQuery, LaunchResult } from "@/lib/types";
 
 const DEFAULT_LIMIT = 9;
 const MAX_LIMIT = 24;
@@ -104,55 +106,68 @@ export async function searchLaunches(query: LaunchQuery): Promise<LaunchResult> 
   };
 }
 
-export async function getLaunchById(id: string): Promise<Launch | null> {
-  const value = id.trim().slice(0, 140);
-  if (!value) return null;
-  const supabase = getSupabaseAdmin();
-  const { data: byId, error: idError } = await supabase
-    .from("launches")
-    .select("*")
-    .eq("external_id", value)
-    .maybeSingle();
-  if (idError) throw idError;
-  if (byId) return byId as Launch;
-
-  const { data: bySlug, error: slugError } = await supabase
-    .from("launches")
-    .select("*")
-    .eq("slug", value)
-    .maybeSingle();
-  if (slugError) throw slugError;
-  if (bySlug) return bySlug as Launch;
-
-  const source = await fetchLaunchById(value);
-  if (!source) return null;
+function fallbackLaunch(source: LaunchLibraryLaunch): Launch {
   const record = toLaunchRecord(source);
-  const providerCn: Record<string, string> = {
-    SpaceX: "太空探索技术公司",
-    NASA: "美国国家航空航天局",
-    "Rocket Lab": "火箭实验室",
-    "Blue Origin": "蓝色起源",
-    Roscosmos: "俄罗斯航天国家集团",
-  };
-  const statusCn: Record<string, string> = {
-    Go: "计划发射",
-    TBD: "时间待定",
-    TBC: "时间待确认",
-    Success: "发射成功",
-    Failure: "发射失败",
-    "Partial Failure": "部分失败",
-    Hold: "暂停",
-    "In Flight": "飞行中",
-  };
   const starlinkGroup = source.name.match(/Starlink Group\s+([\d-]+)/i)?.[1];
   const isVandenberg = /Vandenberg/i.test(record.location || "");
   return {
     ...record,
-    provider_cn: record.provider ? providerCn[record.provider] ?? null : null,
-    status_cn: statusCn[record.status] ?? source.status?.name ?? "状态待确认",
     name_cn: starlinkGroup ? `星链 ${starlinkGroup}` : null,
     mission_description_cn: starlinkGroup ? "一批星链卫星将加入 SpaceX 太空互联网通信星座，为全球宽带服务补充轨道容量。" : null,
     location_cn: isVandenberg ? "美国 加州 范登堡太空军基地" : null,
     synced_at: new Date().toISOString(),
+    details: toLaunchDetails(source),
   };
 }
+
+function mergeLaunchDetails(base: Launch, source: LaunchLibraryLaunch): Launch {
+  const latest = toLaunchRecord(source);
+  return {
+    ...base,
+    ...latest,
+    name_cn: base.name_cn,
+    mission_description_cn: base.mission_description_cn,
+    location_cn: base.location_cn,
+    provider_cn: base.provider_cn ?? latest.provider_cn,
+    synced_at: base.synced_at,
+    details: toLaunchDetails(source),
+  };
+}
+
+async function getLaunchByIdUncached(id: string): Promise<Launch | null> {
+  const value = id.trim().slice(0, 140);
+  if (!value) return null;
+  const supabase = getSupabaseAdmin();
+
+  let stored: Launch | null = null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    const { data: byId, error: idError } = await supabase
+      .from("launches")
+      .select("*")
+      .eq("external_id", value)
+      .maybeSingle();
+    if (idError) throw idError;
+    stored = byId as Launch | null;
+  }
+
+  if (!stored) {
+    const { data: bySlug, error: slugError } = await supabase
+      .from("launches")
+      .select("*")
+      .eq("slug", value)
+      .maybeSingle();
+    if (slugError) throw slugError;
+    stored = bySlug as Launch | null;
+  }
+
+  if (stored) {
+    const source = await fetchLaunchById(stored.external_id).catch(() => null);
+    return source ? mergeLaunchDetails(stored, source) : stored;
+  }
+
+  const source = await fetchLaunchById(value);
+  if (!source) return null;
+  return fallbackLaunch(source);
+}
+
+export const getLaunchById = cache(getLaunchByIdUncached);

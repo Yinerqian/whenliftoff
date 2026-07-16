@@ -1,5 +1,6 @@
 import { localizeProvider, localizeStatus } from "@/lib/localization";
 import { resolveLaunchImageUrl } from "@/lib/image";
+import { toLaunchDetails } from "@/lib/launch-details";
 import type { Launch, LaunchLibraryLaunch } from "@/lib/types";
 
 export type UpstreamLaunchPage = { results: LaunchLibraryLaunch[] };
@@ -42,6 +43,7 @@ export function toLaunchRecord(source: LaunchLibraryLaunch): Omit<Launch, "name_
   const provider = source.launch_service_provider?.name ?? null;
   const { status, status_cn } = localizeStatus(source.status?.abbrev, source.status?.name);
   const location = source.pad?.location?.name ?? null;
+  const details = toLaunchDetails(source);
   return {
     external_id: source.id,
     slug: source.slug || source.id,
@@ -58,8 +60,8 @@ export function toLaunchRecord(source: LaunchLibraryLaunch): Omit<Launch, "name_
     country_code: source.pad?.location?.country_code ?? null,
     pad: source.pad?.name ?? null,
     image_url: resolveLaunchImageUrl(source.image) ?? resolveLaunchImageUrl(source.image_url),
-    webcast_url: source.vidURLs?.[0] ?? null,
-    source_url: source.url ?? null,
+    webcast_url: details.video_links[0]?.url ?? source.vidURLs?.[0] ?? null,
+    source_url: details.info_links[0]?.url ?? source.url ?? null,
     api_updated_at: source.last_updated ?? null,
   };
 }
