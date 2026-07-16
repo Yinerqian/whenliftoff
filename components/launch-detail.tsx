@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { SiteHeader } from "@/components/site-header";
@@ -247,9 +246,9 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
     <main className="app-shell detail-shell" data-theme={theme}>
       <SiteHeader active="launches" theme={theme} onThemeToggle={() => setTheme((value) => value === "light" ? "dark" : "light")} />
 
-      <div className="detail-page">
+      <div className="detail-page launch-page-content">
         <nav className="detail-breadcrumb" aria-label="面包屑导航">
-          <Link href="/launches">发射日程</Link><span aria-hidden="true">›</span><strong aria-current="page">发射详情 · {name}</strong>
+          <a href="/launches">发射日程</a><span aria-hidden="true">›</span><strong aria-current="page">发射详情 · {name}</strong>
         </nav>
 
         <section className="detail-hero-card">

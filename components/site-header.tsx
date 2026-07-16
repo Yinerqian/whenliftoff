@@ -12,6 +12,10 @@ type SiteHeaderProps = {
   searchValue?: string;
   onSearchValueChange?: (value: string) => void;
   onSearchSubmit?: FormEventHandler<HTMLFormElement>;
+  searchAction?: string;
+  searchName?: string;
+  searchPlaceholder?: string;
+  searchLabel?: string;
 };
 
 function SearchIcon() {
@@ -30,6 +34,10 @@ export function SiteHeader({
   searchValue,
   onSearchValueChange,
   onSearchSubmit,
+  searchAction = "/launches",
+  searchName = "q",
+  searchPlaceholder = "搜索火箭、任务、机构…",
+  searchLabel = "搜索火箭、任务或机构",
 }: SiteHeaderProps) {
   function handleScheduleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (window.location.pathname !== "/launches") return;
@@ -56,14 +64,14 @@ export function SiteHeader({
         <a className={active === "launches" ? "active" : undefined} href="/launches" onClick={handleScheduleClick}>发射日程</a>
         <a className={active === "news" ? "active" : undefined} href="/news">新闻</a>
       </nav>
-      <form className="top-search" action="/launches" method="get" onSubmit={onSearchSubmit}>
+      <form className="top-search" action={searchAction} method="get" onSubmit={onSearchSubmit}>
         <SearchIcon />
         <input
-          name="q"
+          name={searchName}
           value={controlledSearch ? searchValue : undefined}
           onChange={controlledSearch ? (event) => onSearchValueChange?.(event.target.value) : undefined}
-          placeholder="搜索火箭、任务、机构…"
-          aria-label="搜索火箭、任务或机构"
+          placeholder={searchPlaceholder}
+          aria-label={searchLabel}
         />
       </form>
       <button

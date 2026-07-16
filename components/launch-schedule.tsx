@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { SiteHeader } from "@/components/site-header";
+import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
-import { countdownParts, formatBeijingClock, formatBeijingDate } from "@/lib/time";
+import { formatBeijingClock, formatBeijingDate } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
 type Filters = { q: string; provider: string };
@@ -89,35 +90,6 @@ function shortProvider(provider: string) {
   return known[provider] || (provider.length > 22 ? `${provider.slice(0, 20)}…` : provider);
 }
 
-function Countdown({ value }: { value: string | null }) {
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (now === null) return <div className="mini-countdown skeleton-line" />;
-  const parts = countdownParts(value, now);
-  if (!parts) return <div className="mini-countdown tbd-countdown">发射时间待确认</div>;
-  return (
-    <div className="mini-countdown" aria-label="下一次发射倒计时">
-      <span className="t-minus">T−</span>
-      {([
-        [parts.days, "天"],
-        [parts.hours, "小时"],
-        [parts.minutes, "分钟"],
-        [parts.seconds, "秒"],
-      ] as const).map(([number, label]) => (
-        <div className="mini-time" key={label}>
-          <strong>{String(number).padStart(2, "0")}</strong>
-          <span>{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 type LaunchCardIconName = "agency" | "clock" | "globe" | "pin" | "rocket";
 
 function LaunchCardIcon({ name }: { name: LaunchCardIconName }) {
@@ -186,12 +158,16 @@ function LaunchCardCountdown({ value, hidden = false }: { value: string | null; 
   );
 }
 
-function LaunchCard({ launch }: { launch: Launch }) {
+function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch; isNew?: boolean; enterIndex?: number }) {
   const imageUrl = resolveLaunchImageUrl(launch.image_url);
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const tone = status.tone;
   return (
-    <a className="launch-row" href={`/launches/${launch.external_id}`}>
+    <a
+      className={`launch-row${isNew ? " is-new" : ""}`}
+      href={`/launches/${launch.external_id}`}
+      style={isNew ? { animationDelay: `${Math.min(enterIndex, 5) * 35}ms` } : undefined}
+    >
       <div
         className="launch-thumb"
         style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
@@ -220,28 +196,6 @@ function LaunchCard({ launch }: { launch: Launch }) {
   );
 }
 
-function UpcomingCard({ launch }: { launch: Launch | null }) {
-  const imageUrl = resolveLaunchImageUrl(launch?.image_url) || "/assets/whenliftoff/hero_launch.jpg";
-  return (
-    <aside className="upcoming-card">
-      <div className="upcoming-visual" style={{ backgroundImage: `url("${imageUrl}")` }}>
-        <span className="live-pill"><i /> 即将直播</span>
-      </div>
-      <div className="upcoming-body">
-        <p className="upcoming-meta">
-          {launch?.provider || "全球任务"} · {launch?.rocket_name || "运载火箭"} · {launch?.pad || "发射台待确认"}
-        </p>
-        <h2>{launch ? launch.name_cn || launch.name : "下一次发射任务"}</h2>
-        <Countdown value={launch?.launch_time_utc ?? null} />
-        <div className="upcoming-footer">
-          <span>● 概率未公布</span>
-          <a href={launch ? `/launches/${launch.external_id}` : "#"}>任务详情 ↗</a>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
 export function LaunchSchedule({ initial, initialError = false, initialSearch = "" }: { initial: LaunchResult; initialError?: boolean; initialSearch?: string }) {
   const [filters, setFilters] = useState<Filters>({ ...initialFilters, q: initialSearch });
   const [result, setResult] = useState(initial);
@@ -249,6 +203,13 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
   const [error, setError] = useState(initialError);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [providerExpanded, setProviderExpanded] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<"replace" | "append" | null>(null);
+  const [resultRevision, setResultRevision] = useState(0);
+  const [newLaunchIds, setNewLaunchIds] = useState<string[]>([]);
+  const [agencyIndicator, setAgencyIndicator] = useState({ left: 0, right: 0, trackWidth: 1, ready: false });
+  const agencyFiltersRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
+  const newCardsTimerRef = useRef<number | null>(null);
 
   const timeline = useMemo(() => makeTimeline(result.items), [result.items]);
   const hero = useMemo(
@@ -260,24 +221,77 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
   const providerCounts = useMemo(() => {
     return new Map(result.providerCounts.map(({ provider, count }) => [provider, count]));
   }, [result.providerCounts]);
+  const providerOptions = useMemo(() => [...providerCounts.entries()].slice(0, 6), [providerCounts]);
   const showLoadMore = Boolean(result.nextCursor) || Boolean(filters.provider && !providerExpanded);
 
+  useLayoutEffect(() => {
+    const container = agencyFiltersRef.current;
+    if (!container) return;
+
+    const updateIndicator = () => {
+      const activeButton = container.querySelector<HTMLButtonElement>('button[aria-selected="true"]');
+      if (!activeButton) return;
+      const trackWidth = container.scrollWidth;
+      const next = {
+        left: activeButton.offsetLeft,
+        right: Math.max(0, trackWidth - activeButton.offsetLeft - activeButton.offsetWidth),
+        trackWidth,
+        ready: true,
+      };
+      setAgencyIndicator((current) => current.left === next.left
+        && current.right === next.right
+        && current.trackWidth === next.trackWidth
+        && current.ready
+        ? current
+        : next);
+    };
+
+    updateIndicator();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateIndicator);
+    observer?.observe(container);
+    container.querySelectorAll("button").forEach((button) => observer?.observe(button));
+    window.addEventListener("resize", updateIndicator);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateIndicator);
+    };
+  }, [filters.provider, providerOptions]);
+
+  useEffect(() => () => {
+    if (newCardsTimerRef.current !== null) window.clearTimeout(newCardsTimerRef.current);
+  }, []);
+
   async function load(nextFilters = filters, cursor?: string | null, append = false, scope: LaunchScope = "month") {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
+    setLoadingMode(append ? "append" : "replace");
     setError(false);
     const params = requestParams(nextFilters, cursor, scope);
     try {
       const response = await fetch(`/api/launches?${params.toString()}`);
       if (!response.ok) throw new Error("无法加载日程");
       const data = (await response.json()) as LaunchResult;
+      if (requestId !== requestIdRef.current) return false;
       setResult((current) => append ? { ...data, items: [...current.items, ...data.items] } : data);
+      if (append) {
+        if (newCardsTimerRef.current !== null) window.clearTimeout(newCardsTimerRef.current);
+        setNewLaunchIds(data.items.map((launch) => launch.external_id));
+        newCardsTimerRef.current = window.setTimeout(() => setNewLaunchIds([]), 520);
+      } else {
+        setNewLaunchIds([]);
+        setResultRevision((current) => current + 1);
+      }
       if (!append) window.history.replaceState(null, "", `/launches?${params.toString()}`);
       return true;
     } catch {
+      if (requestId !== requestIdRef.current) return false;
       setError(true);
       return false;
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setLoadingMode(null);
+      }
     }
   }
 
@@ -316,10 +330,24 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
         onSearchSubmit={submitSearch}
       />
 
-      <section className="dashboard" id="overview">
+      <section className="dashboard launch-page-content" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
         <section className="filters-row" id="agencies" aria-label="发射机构分类">
-          <div className="agency-filters" role="tablist" aria-label="发射机构">
+          <div
+            ref={agencyFiltersRef}
+            className={`agency-filters${agencyIndicator.ready ? " has-indicator" : ""}`}
+            role="tablist"
+            aria-label="发射机构"
+          >
+            <span
+              className="agency-active-indicator"
+              aria-hidden="true"
+              style={{
+                opacity: agencyIndicator.ready ? 1 : 0,
+                width: `${agencyIndicator.trackWidth}px`,
+                clipPath: `inset(0 ${agencyIndicator.right}px 0 ${agencyIndicator.left}px round 999px)`,
+              }}
+            />
             <button
               className={!filters.provider ? "active" : ""}
               type="button"
@@ -329,7 +357,7 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
             >
               全部机构 <span>{result.monthTotal}</span>
             </button>
-            {[...providerCounts.entries()].slice(0, 6).map(([provider, count]) => (
+            {providerOptions.map(([provider, count]) => (
               <button
                 className={filters.provider === provider ? "active" : ""}
                 type="button"
@@ -345,34 +373,43 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
         </section>
 
         <div className="content-grid" id="schedule">
-          <section className="timeline" aria-label="发射时间线">
-            {error ? (
-              <div className="state-card error-state">发射日程暂时不可用，请稍后重试。</div>
-            ) : result.items.length === 0 && !loading ? (
-              <div className="state-card">暂无符合条件的发射任务。</div>
-            ) : (
-              timeline.map((group) => (
-                <div className="timeline-group" key={group.key}>
-                  <aside className="date-rail">
-                    <time dateTime={group.key === "tbd" ? undefined : group.key}>
-                      {formatTimelineDate(group.launches[0]?.launch_time_utc ?? null)}
-                    </time>
-                    <i />
-                  </aside>
-                  <div className="event-stack">
-                    {group.key !== "tbd" && relativeDay(group.key) === "今天" && (
-                      <div className="today-divider">今天 · 以下为发射计划</div>
-                    )}
-                    {group.launches.map((launch) => <LaunchCard launch={launch} key={launch.external_id} />)}
+          <section className="timeline" aria-label="发射时间线" aria-busy={loading}>
+            <div
+              className={`timeline-results${loadingMode === "replace" ? " is-updating" : ""}`}
+              key={resultRevision}
+            >
+              {error ? (
+                <div className="state-card error-state">发射日程暂时不可用，请稍后重试。</div>
+              ) : result.items.length === 0 && !loading ? (
+                <div className="state-card">暂无符合条件的发射任务。</div>
+              ) : (
+                timeline.map((group) => (
+                  <div className="timeline-group" key={group.key}>
+                    <aside className="date-rail">
+                      <time dateTime={group.key === "tbd" ? undefined : group.key}>
+                        {formatTimelineDate(group.launches[0]?.launch_time_utc ?? null)}
+                      </time>
+                      <i />
+                    </aside>
+                    <div className="event-stack">
+                      {group.key !== "tbd" && relativeDay(group.key) === "今天" && (
+                        <div className="today-divider">今天 · 以下为发射计划</div>
+                      )}
+                      {group.launches.map((launch) => {
+                        const enterIndex = newLaunchIds.indexOf(launch.external_id);
+                        return <LaunchCard launch={launch} key={launch.external_id} isNew={enterIndex >= 0} enterIndex={enterIndex} />;
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
             {!error && (showLoadMore || result.lastSyncedAt) && (
               <footer className="schedule-list-footer">
                 {showLoadMore && (
                   <button className="load-more" type="button" onClick={() => void loadMore()} disabled={loading}>
-                    {loading ? "正在加载…" : "加载更多发射任务"}
+                    {loadingMode === "append" && <span className="load-more-spinner" aria-hidden="true" />}
+                    {loadingMode === "append" ? "正在加载…" : "加载更多发射任务"}
                   </button>
                 )}
                 {result.lastSyncedAt && (
@@ -381,8 +418,8 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
               </footer>
             )}
           </section>
-          <div className="side-column">
-            <UpcomingCard launch={hero} />
+          <div className={`side-column${loadingMode === "replace" ? " is-updating" : ""}`}>
+            <UpcomingLaunchCard launch={hero} key={hero?.external_id ?? "upcoming-empty"} />
             <section className="next-list">
               <div className="side-heading"><strong>近期窗口 · CST</strong><span>{Math.min(result.items.length, 4)} 场</span></div>
               {result.items.slice(0, 4).map((launch) => (

@@ -171,3 +171,16 @@ async function getLaunchByIdUncached(id: string): Promise<Launch | null> {
 }
 
 export const getLaunchById = cache(getLaunchByIdUncached);
+
+export async function getNextUpcomingLaunch(): Promise<Launch | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("launches")
+    .select("*")
+    .gte("launch_time_utc", new Date().toISOString())
+    .order("launch_time_utc", { ascending: true, nullsFirst: false })
+    .order("external_id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Launch | null;
+}
