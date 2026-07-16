@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { BackToTop } from "@/components/back-to-top";
 import { SiteHeader } from "@/components/site-header";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import {
@@ -371,6 +372,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
           </aside>
         </div>
       </div>
+      <BackToTop />
     </main>
   );
 }

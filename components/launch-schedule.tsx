@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import { BackToTop } from "@/components/back-to-top";
 import { SiteHeader } from "@/components/site-header";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
@@ -367,10 +368,17 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
                 </div>
               ))
             )}
-            {showLoadMore && !error && (
-              <button className="load-more" type="button" onClick={() => void loadMore()} disabled={loading}>
-                {loading ? "正在加载…" : "加载更多发射任务"}
-              </button>
+            {!error && (showLoadMore || result.lastSyncedAt) && (
+              <footer className="schedule-list-footer">
+                {showLoadMore && (
+                  <button className="load-more" type="button" onClick={() => void loadMore()} disabled={loading}>
+                    {loading ? "正在加载…" : "加载更多发射任务"}
+                  </button>
+                )}
+                {result.lastSyncedAt && (
+                  <p className="sync-note">数据来自 Launch Library 2 · 最近同步于 {new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(result.lastSyncedAt))}</p>
+                )}
+              </footer>
             )}
           </section>
           <div className="side-column">
@@ -389,10 +397,8 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
           </div>
         </div>
 
-        {result.lastSyncedAt && (
-          <p className="sync-note">数据来自 Launch Library 2 · 最近同步于 {new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(result.lastSyncedAt))}</p>
-        )}
       </section>
+      <BackToTop />
     </main>
   );
 }
