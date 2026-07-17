@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { NewsImage } from "@/components/news-image";
-import { NewsLaunchCard } from "@/components/news-launch-card";
+import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import type { NewsContentBlock, NewsContentType, NewsItem } from "@/lib/news-types";
 import type { Launch } from "@/lib/types";
 
@@ -57,7 +57,7 @@ function ShareCard() {
   );
 }
 
-export function NewsDetail({ item, launch, hasRelatedLaunch }: { item: NewsItem; launch: Launch | null; hasRelatedLaunch: boolean }) {
+export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | null }) {
   const blocks = item.body_cn_blocks ?? [];
   const hasBody = blocks.length > 0;
   const isPending = item.translation_status === "pending" || item.translation_status === "extracting" || item.translation_status === "translating" || item.translation_status === "failed";
@@ -75,10 +75,6 @@ export function NewsDetail({ item, launch, hasRelatedLaunch }: { item: NewsItem;
         <div className="news-detail-layout">
           <article className="news-article">
             <NewsImage className="news-detail-hero" src={item.image_url} alt="" fetchPriority="high" />
-            <div className="news-translation-notice">
-              <span>AI 中文翻译 · 版权归原文来源</span>
-              <a href={item.original_url} target="_blank" rel="noopener noreferrer">阅读原文 ↗</a>
-            </div>
             <div className="news-article-body">
               {hasBody ? <ArticleBlocks blocks={blocks} /> : <>
                 {(item.summary_cn || item.summary) && <p className="news-summary-lead">{item.summary_cn || item.summary}</p>}
@@ -89,7 +85,7 @@ export function NewsDetail({ item, launch, hasRelatedLaunch }: { item: NewsItem;
             <footer className="news-article-footer"><p>本文为 AI 辅助翻译，内容与版权归原文作者及发布机构所有。</p><a className="news-primary-button" href={item.original_url} target="_blank" rel="noopener noreferrer">阅读原文 ↗</a></footer>
           </article>
           <div className="news-detail-sidebar">
-            <NewsLaunchCard launch={launch} compact title={hasRelatedLaunch ? "关联发射任务" : "下一次发射"} />
+            <UpcomingLaunchCard launch={launch} />
             <ShareCard />
           </div>
         </div>

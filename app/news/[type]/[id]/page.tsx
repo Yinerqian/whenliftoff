@@ -36,9 +36,9 @@ export default async function NewsDetailPage({ params, searchParams }: NewsDetai
   const preview = process.env.NODE_ENV === "development" && (await searchParams)?.preview === "1";
   const item = preview ? previewNewsItem(route.type, Number(route.id)) : await resolveItem(Promise.resolve(route));
   if (!item) notFound();
-  if (preview) return <NewsDetail item={item} launch={previewLaunch} hasRelatedLaunch />;
+  if (preview) return <NewsDetail item={item} launch={previewLaunch} />;
   const relatedId = item.related_launch_ids?.[0];
   const related = relatedId ? await getLaunchById(relatedId).catch(() => null) : null;
   const fallback = related ? null : await getNextUpcomingLaunch().catch(() => null);
-  return <NewsDetail item={item} launch={related || fallback} hasRelatedLaunch={Boolean(related)} />;
+  return <NewsDetail item={item} launch={related || fallback} />;
 }
