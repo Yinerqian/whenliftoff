@@ -5,7 +5,16 @@ import { getLaunchById } from "@/lib/launch-repository";
 
 export const dynamic = "force-dynamic";
 
-type DetailPageProps = { params: Promise<{ id: string }> };
+type DetailPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+};
+
+function newsReturnPath(value: string | string[] | undefined) {
+  if (typeof value !== "string") return null;
+  if (value === "/news") return value;
+  return /^\/news\/(article|blog|report)\/\d+$/.test(value) ? value : null;
+}
 
 export async function generateMetadata({ params }: DetailPageProps): Promise<Metadata> {
   const { id } = await params;
@@ -21,9 +30,10 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
   }
 }
 
-export default async function LaunchDetailPage({ params }: DetailPageProps) {
+export default async function LaunchDetailPage({ params, searchParams }: DetailPageProps) {
   const { id } = await params;
+  const returnPath = newsReturnPath((await searchParams).from);
   const launch = await getLaunchById(id).catch(() => null);
   if (!launch) notFound();
-  return <LaunchDetail launch={launch} />;
+  return <LaunchDetail launch={launch} newsReturnPath={returnPath} />;
 }

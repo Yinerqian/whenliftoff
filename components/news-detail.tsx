@@ -65,7 +65,7 @@ export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | 
   return (
     <main className="news-detail-route-main">
       <div className="news-detail-page">
-        <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/">首页</Link><span>›</span><Link href="/news">航天新闻</Link><span>›</span><span>{item.title_cn || item.title}</span></nav>
+        <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/news">航天新闻</Link><span aria-hidden="true">›</span><span aria-current="page">{item.title_cn || item.title}</span></nav>
         <header className="news-detail-header">
           <span className="news-detail-type">{TYPE_LABEL[item.content_type]}</span>
           <h1>{item.title_cn || item.title}</h1>
@@ -85,7 +85,7 @@ export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | 
             <footer className="news-article-footer"><p>本文为 AI 辅助翻译，内容与版权归原文作者及发布机构所有。</p><a className="news-primary-button" href={item.original_url} target="_blank" rel="noopener noreferrer">阅读原文 ↗</a></footer>
           </article>
           <div className="news-detail-sidebar">
-            <UpcomingLaunchCard launch={launch} />
+            <UpcomingLaunchCard launch={launch} sourceHref={`/news/${item.content_type}/${item.external_id}`} />
             <ShareCard />
           </div>
         </div>

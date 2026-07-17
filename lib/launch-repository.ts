@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { fetchLaunchById, toLaunchRecord } from "@/lib/launch-library";
 import { toLaunchDetails } from "@/lib/launch-details";
+import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { beijingMonthRange } from "@/lib/time";
 import type { Launch, LaunchLibraryLaunch, LaunchQuery, LaunchResult } from "@/lib/types";
@@ -171,6 +172,25 @@ async function getLaunchByIdUncached(id: string): Promise<Launch | null> {
 }
 
 export const getLaunchById = cache(getLaunchByIdUncached);
+
+export async function getRecentCompletedLaunches(limit = 5): Promise<Launch[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 10);
+  const { data, error } = await getSupabaseAdmin()
+    .from("launches")
+    .select("*")
+    .lte("launch_time_utc", new Date().toISOString())
+    .order("launch_time_utc", { ascending: false, nullsFirst: false })
+    .order("external_id", { ascending: false })
+    .limit(Math.max(safeLimit * 10, 50));
+  if (error) throw error;
+
+  return ((data ?? []) as Launch[])
+    .filter((launch) => {
+      const tone = getLaunchStatusMeta(launch.status, launch.status_cn).tone;
+      return tone === "success" || tone === "failed";
+    })
+    .slice(0, safeLimit);
+}
 
 export async function getNextUpcomingLaunch(): Promise<Launch | null> {
   const { data, error } = await getSupabaseAdmin()

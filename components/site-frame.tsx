@@ -33,6 +33,14 @@ export function SiteFrame({ children }: { children: ReactNode }) {
     setSearchValue(new URLSearchParams(window.location.search).get("q") ?? "");
   }, [pathname]);
 
+  useEffect(() => {
+    if (document.documentElement.dataset.newsPointerNavigation !== "true") return;
+    const timer = window.setTimeout(() => {
+      delete document.documentElement.dataset.newsPointerNavigation;
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
+
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = searchValue.trim().slice(0, 100);

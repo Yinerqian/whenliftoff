@@ -37,16 +37,19 @@ function Countdown({ value }: { value: string | null }) {
   );
 }
 
-export function UpcomingLaunchCard({ launch }: { launch: Launch | null }) {
+export function UpcomingLaunchCard({ launch, sourceHref }: { launch: Launch | null; sourceHref?: string }) {
   const imageUrl = resolveLaunchImageUrl(launch?.image_url) || "/assets/whenliftoff/hero_launch.jpg";
+  const detailHref = launch
+    ? `/launches/${launch.external_id}${sourceHref ? `?from=${encodeURIComponent(sourceHref)}` : ""}`
+    : null;
 
   return (
     <aside className="upcoming-card">
       <div className="upcoming-visual" style={{ backgroundImage: `url("${imageUrl}")` }}>
         <div className="upcoming-actions">
           <span className="next-launch-pill">下次发射</span>
-          {launch
-            ? <Link className="upcoming-detail-link" href={`/launches/${launch.external_id}`}>任务详情 ↗</Link>
+          {detailHref
+            ? <Link className="upcoming-detail-link" href={detailHref}>任务详情 ↗</Link>
             : <span className="upcoming-detail-link" aria-disabled="true">任务详情 ↗</span>}
         </div>
       </div>

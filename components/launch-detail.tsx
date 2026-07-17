@@ -199,7 +199,7 @@ function TimelineList({ events }: { events: LaunchTimelineEvent[] }) {
   );
 }
 
-export function LaunchDetail({ launch }: { launch: Launch }) {
+export function LaunchDetail({ launch, newsReturnPath = null }: { launch: Launch; newsReturnPath?: string | null }) {
   const [showFullTimeline, setShowFullTimeline] = useState(false);
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const details = launch.details;
@@ -245,7 +245,11 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
     <main className="launch-detail-route-main">
       <div className="detail-page launch-page-content">
         <nav className="detail-breadcrumb" aria-label="面包屑导航">
-          <Link href="/launches">发射日程</Link><span aria-hidden="true">›</span><strong aria-current="page">发射详情 · {name}</strong>
+          {newsReturnPath ? <>
+            <Link href="/news">航天新闻</Link><span aria-hidden="true">›</span>
+            {newsReturnPath !== "/news" && <><Link href={newsReturnPath}>新闻详情</Link><span aria-hidden="true">›</span></>}
+          </> : <><Link href="/launches">发射日程</Link><span aria-hidden="true">›</span></>}
+          <strong aria-current="page">发射详情 · {name}</strong>
         </nav>
 
         <section className="detail-hero-card">

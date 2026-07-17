@@ -8,7 +8,7 @@ import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
-import { formatBeijingClock, formatBeijingDate } from "@/lib/time";
+import { formatBeijingClock } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
 type Filters = { q: string; provider: string };
@@ -63,9 +63,29 @@ function relativeDay(key: string) {
   const delta = Math.round((target.getTime() - today.getTime()) / 86_400_000);
   if (delta === 0) return "今天";
   if (delta === 1) return "明天";
+  if (delta === -1) return "昨天";
   if (delta === 2) return "后天";
-  if (delta > 0) return `${delta} 天后`;
-  return `${Math.abs(delta)} 天前`;
+  if (delta === -2) return "前天";
+  const absoluteDays = Math.abs(delta);
+  const direction = delta > 0 ? "后" : "前";
+  if (absoluteDays >= 7) {
+    const weeks = Math.floor(absoluteDays / 7);
+    const days = absoluteDays % 7;
+    return `${weeks}周${days ? `${days}天` : ""}${direction}`;
+  }
+  return `${absoluteDays}天${direction}`;
+}
+
+function formatRecentLaunchDate(value: string | null) {
+  if (!value) return "日期待定";
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date(value));
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return month && day ? `${month}月${day}日` : "日期待定";
 }
 
 function countryFlag(code: string | null) {
@@ -197,7 +217,7 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch;
   );
 }
 
-export function LaunchSchedule({ initial, initialError = false, initialSearch = "" }: { initial: LaunchResult; initialError?: boolean; initialSearch?: string }) {
+export function LaunchSchedule({ initial, recentCompleted, initialError = false, initialSearch = "" }: { initial: LaunchResult; recentCompleted: Launch[]; initialError?: boolean; initialSearch?: string }) {
   const [filters, setFilters] = useState<Filters>({ ...initialFilters, q: initialSearch });
   const [result, setResult] = useState(initial);
   const [loading, setLoading] = useState(false);
@@ -386,16 +406,18 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
               ) : result.items.length === 0 && !loading ? (
                 <div className="state-card">暂无符合条件的发射任务。</div>
               ) : (
-                timeline.map((group) => (
-                  <div className="timeline-group" key={group.key}>
+                timeline.map((group) => {
+                  const relativeLabel = relativeDay(group.key);
+                  return <div className="timeline-group" key={group.key}>
                     <aside className="date-rail">
                       <time dateTime={group.key === "tbd" ? undefined : group.key}>
                         {formatTimelineDate(group.launches[0]?.launch_time_utc ?? null)}
                       </time>
+                      {group.key !== "tbd" && <span className="date-relative">{relativeLabel}</span>}
                       <i />
                     </aside>
                     <div className="event-stack">
-                      {group.key !== "tbd" && relativeDay(group.key) === "今天" && (
+                      {group.key !== "tbd" && relativeLabel === "今天" && (
                         <div className="today-divider">今天 · 以下为发射计划</div>
                       )}
                       {group.launches.map((launch) => {
@@ -403,8 +425,8 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
                         return <LaunchCard launch={launch} key={launch.external_id} isNew={enterIndex >= 0} enterIndex={enterIndex} />;
                       })}
                     </div>
-                  </div>
-                ))
+                  </div>;
+                })
               )}
             </div>
             {!error && (showLoadMore || result.lastSyncedAt) && (
@@ -424,15 +446,16 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
           <div className={`side-column${loadingMode === "replace" ? " is-updating" : ""}`}>
             <UpcomingLaunchCard launch={hero} key={hero?.external_id ?? "upcoming-empty"} />
             <section className="next-list">
-              <div className="side-heading"><strong>近期窗口 · CST</strong><span>{Math.min(result.items.length, 4)} 场</span></div>
-              {result.items.slice(0, 4).map((launch) => (
+              <div className="side-heading"><strong>最近已发射 · CST</strong><span>{recentCompleted.length} 场</span></div>
+              {recentCompleted.map((launch) => (
                 <Link href={`/launches/${launch.external_id}`} key={launch.external_id}>
                   <strong>{formatBeijingClock(launch.launch_time_utc)}</strong>
-                  <span>{formatBeijingDate(launch.launch_time_utc).day}</span>
+                  <span>{formatRecentLaunchDate(launch.launch_time_utc)}</span>
                   <div><b>{launch.name_cn || launch.name}</b><small>{launch.provider || "机构待确认"} · {launch.rocket_name || "火箭待确认"}</small></div>
                   <em>—</em>
                 </Link>
               ))}
+              {!recentCompleted.length && <p className="next-list-empty">暂无已完成的发射记录</p>}
             </section>
           </div>
         </div>
