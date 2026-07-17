@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { countdownParts } from "@/lib/time";
@@ -44,13 +45,9 @@ export function UpcomingLaunchCard({ launch }: { launch: Launch | null }) {
       <div className="upcoming-visual" style={{ backgroundImage: `url("${imageUrl}")` }}>
         <div className="upcoming-actions">
           <span className="next-launch-pill">下次发射</span>
-          <a
-            className="upcoming-detail-link"
-            href={launch ? `/launches/${launch.external_id}` : undefined}
-            aria-disabled={!launch}
-          >
-            任务详情 ↗
-          </a>
+          {launch
+            ? <Link className="upcoming-detail-link" href={`/launches/${launch.external_id}`}>任务详情 ↗</Link>
+            : <span className="upcoming-detail-link" aria-disabled="true">任务详情 ↗</span>}
         </div>
       </div>
       <div className="upcoming-body">

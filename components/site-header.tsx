@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import type { FormEventHandler, MouseEvent } from "react";
 
 export type SiteSection = "home" | "launches" | "news";
@@ -55,14 +56,14 @@ export function SiteHeader({
 
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label="When Liftoff 首页">
+      <Link className="brand" href="/" aria-label="When Liftoff 首页">
         <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority />
         <span>when<b>liftoff</b></span>
-      </a>
+      </Link>
       <nav className="primary-nav" aria-label="主导航">
-        <a className={active === "home" ? "active" : undefined} href="/">首页</a>
-        <a className={active === "launches" ? "active" : undefined} href="/launches" onClick={handleScheduleClick}>发射日程</a>
-        <a className={active === "news" ? "active" : undefined} href="/news">新闻</a>
+        <Link className={active === "home" ? "active" : undefined} href="/">首页</Link>
+        <Link className={active === "launches" ? "active" : undefined} href="/launches" onClick={handleScheduleClick}>发射日程</Link>
+        <Link className={active === "news" ? "active" : undefined} href="/news">新闻</Link>
       </nav>
       <form className="top-search" action={searchAction} method="get" onSubmit={onSearchSubmit}>
         <SearchIcon />

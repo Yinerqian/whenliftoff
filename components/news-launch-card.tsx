@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { countdownParts, formatBeijingTime } from "@/lib/time";
 import type { Launch } from "@/lib/types";
@@ -45,7 +46,7 @@ export function NewsLaunchCard({ launch, compact = false, title }: { launch: Lau
           <span>▣ {formatBeijingTime(launch.launch_time_utc)}（北京时间）</span>
           <span>● {launch.location_cn || launch.location || "发射地点待确认"}</span>
         </div>
-        <a className="news-primary-button" href={`/launches/${launch.slug || launch.external_id}`}>查看任务详情</a>
+        <Link className="news-primary-button" href={`/launches/${launch.slug || launch.external_id}`}>查看任务详情</Link>
       </> : <div className="news-launch-empty">近期发射任务暂不可用</div>}
     </aside>
   );

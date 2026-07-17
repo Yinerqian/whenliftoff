@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
-import { SiteHeader } from "@/components/site-header";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import {
   formatTimelineOffset,
@@ -200,7 +200,6 @@ function TimelineList({ events }: { events: LaunchTimelineEvent[] }) {
 }
 
 export function LaunchDetail({ launch }: { launch: Launch }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showFullTimeline, setShowFullTimeline] = useState(false);
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const details = launch.details;
@@ -243,12 +242,10 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
   ].filter((fact): fact is [string, string] => Boolean(fact?.[1]));
 
   return (
-    <main className="app-shell detail-shell" data-theme={theme}>
-      <SiteHeader active="launches" theme={theme} onThemeToggle={() => setTheme((value) => value === "light" ? "dark" : "light")} />
-
+    <main className="launch-detail-route-main">
       <div className="detail-page launch-page-content">
         <nav className="detail-breadcrumb" aria-label="面包屑导航">
-          <a href="/launches">发射日程</a><span aria-hidden="true">›</span><strong aria-current="page">发射详情 · {name}</strong>
+          <Link href="/launches">发射日程</Link><span aria-hidden="true">›</span><strong aria-current="page">发射详情 · {name}</strong>
         </nav>
 
         <section className="detail-hero-card">
@@ -366,7 +363,7 @@ export function LaunchDetail({ launch }: { launch: Launch }) {
                 {!infoLinks.length && !details?.flightclub_url && !details?.infographic_url && primaryInfoUrl && <a href={primaryInfoUrl} target="_blank" rel="noreferrer"><span className="resource-icon"><DetailIcon name="globe" /></span><span><strong>任务数据来源</strong><small>{provider}</small></span></a>}
                 {!primaryInfoUrl && !details?.flightclub_url && !details?.infographic_url && <p>暂无公开的任务资料。</p>}
               </div>
-              <a className="detail-back-link" href="/launches">返回发射日程 →</a>
+              <Link className="detail-back-link" href="/launches">返回发射日程 →</Link>
             </section>
           </aside>
         </div>

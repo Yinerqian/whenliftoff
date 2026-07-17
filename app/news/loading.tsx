@@ -1,6 +1,6 @@
 export default function NewsLoading() {
   return (
-    <main className="app-shell news-shell">
+    <main className="news-route-main">
       <div className="news-page news-loading" aria-label="正在加载航天新闻">
         <div className="news-heading-skeleton" />
         <div className="news-lead-skeleton"><div /><aside /></div>
@@ -9,4 +9,3 @@ export default function NewsLoading() {
     </main>
   );
 }
-

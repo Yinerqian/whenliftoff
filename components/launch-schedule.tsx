@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
-import { SiteHeader } from "@/components/site-header";
+import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
@@ -163,7 +164,7 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch;
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const tone = status.tone;
   return (
-    <a
+    <Link
       className={`launch-row${isNew ? " is-new" : ""}`}
       href={`/launches/${launch.external_id}`}
       style={isNew ? { animationDelay: `${Math.min(enterIndex, 5) * 35}ms` } : undefined}
@@ -192,7 +193,7 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch;
       <div className={`launch-state state-${tone}`}>
         <span>{status.label}</span>
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -201,12 +202,12 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
   const [result, setResult] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [providerExpanded, setProviderExpanded] = useState(false);
   const [loadingMode, setLoadingMode] = useState<"replace" | "append" | null>(null);
   const [resultRevision, setResultRevision] = useState(0);
   const [newLaunchIds, setNewLaunchIds] = useState<string[]>([]);
   const [agencyIndicator, setAgencyIndicator] = useState({ left: 0, right: 0, trackWidth: 1, ready: false });
+  const [agencyIndicatorCanAnimate, setAgencyIndicatorCanAnimate] = useState(false);
   const agencyFiltersRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const newCardsTimerRef = useRef<number | null>(null);
@@ -257,11 +258,16 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
     };
   }, [filters.provider, providerOptions]);
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setAgencyIndicatorCanAnimate(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   useEffect(() => () => {
     if (newCardsTimerRef.current !== null) window.clearTimeout(newCardsTimerRef.current);
   }, []);
 
-  async function load(nextFilters = filters, cursor?: string | null, append = false, scope: LaunchScope = "month") {
+  const load = useCallback(async (nextFilters: Filters, cursor?: string | null, append = false, scope: LaunchScope = "month") => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setLoadingMode(append ? "append" : "replace");
@@ -293,19 +299,25 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
         setLoadingMode(null);
       }
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    function handleHeaderSearch(event: Event) {
+      const q = event instanceof CustomEvent && typeof event.detail === "string" ? event.detail : "";
+      const next = { ...filters, q };
+      setProviderExpanded(false);
+      setFilters(next);
+      void load(next);
+    }
+    window.addEventListener(LAUNCH_SEARCH_EVENT, handleHeaderSearch);
+    return () => window.removeEventListener(LAUNCH_SEARCH_EVENT, handleHeaderSearch);
+  }, [filters, load]);
 
   function selectProvider(provider: string) {
     const next = { ...filters, provider };
     setProviderExpanded(false);
     setFilters(next);
     void load(next);
-  }
-
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setProviderExpanded(false);
-    void load();
   }
 
   async function loadMore() {
@@ -320,22 +332,13 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
   }
 
   return (
-    <main className="app-shell" data-theme={theme}>
-      <SiteHeader
-        active="launches"
-        theme={theme}
-        onThemeToggle={() => setTheme((current) => current === "light" ? "dark" : "light")}
-        searchValue={filters.q}
-        onSearchValueChange={(q) => setFilters((current) => ({ ...current, q }))}
-        onSearchSubmit={submitSearch}
-      />
-
+    <main className="launch-route-main">
       <section className="dashboard launch-page-content" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
         <section className="filters-row" id="agencies" aria-label="发射机构分类">
           <div
             ref={agencyFiltersRef}
-            className={`agency-filters${agencyIndicator.ready ? " has-indicator" : ""}`}
+            className={`agency-filters${agencyIndicator.ready ? " has-indicator" : ""}${agencyIndicatorCanAnimate ? " indicator-can-animate" : ""}`}
             role="tablist"
             aria-label="发射机构"
           >
@@ -423,12 +426,12 @@ export function LaunchSchedule({ initial, initialError = false, initialSearch = 
             <section className="next-list">
               <div className="side-heading"><strong>近期窗口 · CST</strong><span>{Math.min(result.items.length, 4)} 场</span></div>
               {result.items.slice(0, 4).map((launch) => (
-                <a href={`/launches/${launch.external_id}`} key={launch.external_id}>
+                <Link href={`/launches/${launch.external_id}`} key={launch.external_id}>
                   <strong>{formatBeijingClock(launch.launch_time_utc)}</strong>
                   <span>{formatBeijingDate(launch.launch_time_utc).day}</span>
                   <div><b>{launch.name_cn || launch.name}</b><small>{launch.provider || "机构待确认"} · {launch.rocket_name || "火箭待确认"}</small></div>
                   <em>—</em>
-                </a>
+                </Link>
               ))}
             </section>
           </div>

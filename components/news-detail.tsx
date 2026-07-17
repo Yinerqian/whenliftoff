@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { NewsImage } from "@/components/news-image";
 import { NewsLaunchCard } from "@/components/news-launch-card";
-import { SiteHeader } from "@/components/site-header";
 import type { NewsContentBlock, NewsContentType, NewsItem } from "@/lib/news-types";
 import type { Launch } from "@/lib/types";
 
@@ -58,16 +58,14 @@ function ShareCard() {
 }
 
 export function NewsDetail({ item, launch, hasRelatedLaunch }: { item: NewsItem; launch: Launch | null; hasRelatedLaunch: boolean }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const blocks = item.body_cn_blocks ?? [];
   const hasBody = blocks.length > 0;
   const isPending = item.translation_status === "pending" || item.translation_status === "extracting" || item.translation_status === "translating" || item.translation_status === "failed";
   const authors = (item.authors ?? []).map((author) => author.name).filter(Boolean).join("、");
   return (
-    <main className="app-shell news-detail-shell" data-theme={theme}>
-      <SiteHeader active="news" theme={theme} onThemeToggle={() => setTheme((value) => value === "light" ? "dark" : "light")} />
+    <main className="news-detail-route-main">
       <div className="news-detail-page">
-        <nav className="news-breadcrumb" aria-label="面包屑"><a href="/">首页</a><span>›</span><a href="/news">航天新闻</a><span>›</span><span>{item.title_cn || item.title}</span></nav>
+        <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/">首页</Link><span>›</span><Link href="/news">航天新闻</Link><span>›</span><span>{item.title_cn || item.title}</span></nav>
         <header className="news-detail-header">
           <span className="news-detail-type">{TYPE_LABEL[item.content_type]}</span>
           <h1>{item.title_cn || item.title}</h1>
@@ -100,4 +98,3 @@ export function NewsDetail({ item, launch, hasRelatedLaunch }: { item: NewsItem;
     </main>
   );
 }
-

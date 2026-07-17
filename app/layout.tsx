@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteFrame } from "@/components/site-frame";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,8 +9,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
-      <body>{children}</body>
+    <html lang="zh-CN" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body><SiteFrame>{children}</SiteFrame></body>
     </html>
   );
 }

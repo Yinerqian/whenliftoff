@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { NewsImage } from "@/components/news-image";
-import { SiteHeader } from "@/components/site-header";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { distributeNewsColumns, type NewsColumnCard } from "@/lib/news-layout";
 import type { NewsContentType, NewsListItem, NewsPageResult } from "@/lib/news-types";
@@ -32,16 +32,15 @@ function NewsCard({ card }: { card: NewsColumnCard }) {
   const showSummary = variant === "portrait" || variant === "square" || variant === "highlight";
   return (
     <article className={`news-card news-card-${variant}${hasSourceImage ? " news-card-has-image" : ""}`}>
-      <a href={`/news/${item.content_type}/${item.external_id}`} aria-label={item.title_cn || item.title}>
+      <Link href={`/news/${item.content_type}/${item.external_id}`} aria-label={item.title_cn || item.title}>
         {showImage && <div className="news-card-image"><NewsImage src={item.image_url} alt="" loading="lazy" /></div>}
         <div className="news-card-copy">
           <div className="news-card-kicker"><span>{TYPE_LABEL[item.content_type]}</span><i>·</i><time>{formatNewsDate(item.published_at)}</time></div>
           <h2>{item.title_cn || item.title}</h2>
           <p className="news-card-source">来源：{item.news_site}</p>
           {showSummary && (item.summary_cn || item.summary) && <p className="news-card-summary">{item.summary_cn || item.summary}</p>}
-          {variant === "highlight" && <span className="news-read-more">阅读全文 <b aria-hidden="true">→</b></span>}
         </div>
-      </a>
+      </Link>
     </article>
   );
 }
@@ -51,13 +50,16 @@ function Feature({ item }: { item: NewsListItem }) {
     <article className="news-feature">
       <NewsImage src={item.image_url} alt="" fetchPriority="high" />
       <div className="news-feature-shade" />
-      <a
-        className="upcoming-detail-link news-feature-detail-link"
-        href={`/news/${item.content_type}/${item.external_id}`}
-        aria-label={`新闻详情：${item.title_cn || item.title}`}
-      >
-        新闻详情 ↗
-      </a>
+      <div className="news-feature-actions">
+        <span className="news-feature-pill">最新</span>
+        <Link
+          className="upcoming-detail-link"
+          href={`/news/${item.content_type}/${item.external_id}`}
+          aria-label={`新闻详情：${item.title_cn || item.title}`}
+        >
+          新闻详情 ↗
+        </Link>
+      </div>
       <div className="news-feature-copy">
         <h2>{item.title_cn || item.title}</h2>
         <p>来源：{item.news_site}<i>·</i>北京时间 {formatNewsDate(item.published_at)}</p>
@@ -67,7 +69,6 @@ function Feature({ item }: { item: NewsListItem }) {
 }
 
 export function NewsHome({ initial, nextLaunch, initialError = false, preview = false }: { initial: NewsPageResult; nextLaunch: Launch | null; initialError?: boolean; preview?: boolean }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [cards, setCards] = useState(initial.items.slice(1));
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [lastSyncedAt, setLastSyncedAt] = useState(initial.lastSyncedAt);
@@ -111,8 +112,7 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
 
   const feature = initial.items[0];
   return (
-    <main className="app-shell news-shell" data-theme={theme}>
-      <SiteHeader active="news" theme={theme} onThemeToggle={() => setTheme((value) => value === "light" ? "dark" : "light")} />
+    <main className="news-route-main">
       <div className="news-page">
         <header className="news-page-heading"><h1>航天新闻</h1><p>探索太空，发现未来</p></header>
         {feature ? <>
