@@ -203,7 +203,10 @@ export async function getNextUpcomingLaunch(): Promise<Launch | null> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data as Launch | null;
+  const stored = data as Launch | null;
+  if (!stored) return null;
+  const source = await fetchLaunchById(stored.external_id).catch(() => null);
+  return source ? mergeLaunchDetails(stored, source) : stored;
 }
 
 export async function getHomeLaunchStatistics(): Promise<HomeLaunchStats | null> {

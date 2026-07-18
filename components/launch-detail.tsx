@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { DetailBackButton } from "@/components/detail-back-button";
+import { LaunchHeroCard } from "@/components/launch-hero-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import {
   formatTimelineOffset,
@@ -14,7 +15,7 @@ import {
   selectKeyTimelineEvents,
 } from "@/lib/launch-details";
 import { getLaunchStatusMeta, type LaunchStatusTone } from "@/lib/launch-status";
-import { countdownParts, formatBeijingTime, formatUtcTime } from "@/lib/time";
+import { formatUtcTime } from "@/lib/time";
 import type { Launch, LaunchTimelineEvent } from "@/lib/types";
 
 type DetailIconName =
@@ -102,47 +103,6 @@ function formatMetric(value: number | null | undefined, unit: string) {
   return `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value)} ${unit}`;
 }
 
-function DetailCountdown({ value, tone }: { value: string | null; tone: LaunchStatusTone }) {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    const target = value ? new Date(value).getTime() : Number.NaN;
-    if (tone === "success" || tone === "failed" || !Number.isFinite(target) || target <= Date.now()) {
-      setNow(Date.now());
-      return;
-    }
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [tone, value]);
-
-  const parts = now === null ? null : countdownParts(value, now);
-  const ended = tone === "success" || tone === "failed" || (value ? new Date(value).getTime() <= (now ?? 0) : false);
-
-  if (ended) {
-    return (
-      <div className="detail-countdown detail-countdown-ended">
-        <span>任务进度</span>
-        <strong>{tone === "failed" ? "任务已结束" : "发射已完成"}</strong>
-        <small>{formatDateTime(value)} CST</small>
-      </div>
-    );
-  }
-  if (!value) {
-    return <div className="detail-countdown detail-countdown-ended"><span>倒计时（北京时间）</span><strong>时间待定</strong><small>等待任务窗口确认</small></div>;
-  }
-  return (
-    <div className="detail-countdown" aria-label="发射倒计时">
-      <span>倒计时（北京时间）</span>
-      <div className="detail-countdown-grid">
-        {([[parts?.days, "天"], [parts?.hours, "时"], [parts?.minutes, "分"], [parts?.seconds, "秒"]] as const).map(([number, label]) => (
-          <div key={label}><strong>{number === undefined ? "--" : String(number).padStart(2, "0")}</strong><small>{label}</small></div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function KeyFact({ icon, label, primary, secondary, tone }: {
   icon: DetailIconName;
   label: string;
@@ -160,22 +120,6 @@ function KeyFact({ icon, label, primary, secondary, tone }: {
 
 function SectionHeading({ title, eyebrow }: { title: string; eyebrow: string }) {
   return <div className="detail-section-heading"><h2>{title}</h2><span>{eyebrow}</span></div>;
-}
-
-function calendarLink(launch: Launch, name: string) {
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: `${name} 发射`,
-    details: (launch.mission_description_cn || launch.mission_description || `${launch.rocket_name || "运载火箭"}发射任务`).slice(0, 600),
-    location: [launch.pad, launch.location_cn || launch.location].filter(Boolean).join(" · "),
-  });
-  if (launch.launch_time_utc) {
-    const start = new Date(launch.launch_time_utc);
-    const end = launch.window_end_utc ? new Date(launch.window_end_utc) : new Date(start.getTime() + 60 * 60 * 1000);
-    const compact = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-    params.set("dates", `${compact(start)}/${compact(end)}`);
-  }
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 function timelineIcon(event: LaunchTimelineEvent): DetailIconName {
@@ -256,37 +200,7 @@ export function LaunchDetail({ launch, newsReturnPath = null }: { launch: Launch
           <DetailBackButton fallbackHref="/launches" />
         </div>
 
-        <section className="detail-hero-card">
-          <img
-            className="detail-hero-image"
-            src={image}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            fetchPriority="high"
-            onError={(event) => {
-              if (event.currentTarget.dataset.fallback === "true") return;
-              event.currentTarget.dataset.fallback = "true";
-              event.currentTarget.src = fallbackImage;
-            }}
-          />
-          <div className="detail-hero-copy">
-            <header className="detail-title-block"><h1>{name}</h1><p>{rocket}</p></header>
-            <div className="provider-row">
-              <span className="provider-mark"><DetailIcon name="rocket" /></span>
-              <div><strong>{provider}</strong><span>{launch.provider || provider}</span></div>
-            </div>
-            <DetailCountdown value={launch.launch_time_utc} tone={status.tone} />
-            <div className="detail-actions">
-              {(primaryVideoUrl || primaryInfoUrl) && (
-                <a className="detail-primary-action" href={primaryVideoUrl || primaryInfoUrl || "#"} target="_blank" rel="noreferrer">
-                  <DetailIcon name={primaryVideoUrl ? "play" : "globe"} />{primaryVideoUrl ? (status.tone === "success" ? "观看回放" : "观看直播") : "任务资料"}
-                </a>
-              )}
-              <a className="detail-secondary-action" href={calendarLink(launch, name)} target="_blank" rel="noreferrer"><DetailIcon name="calendar" />添加到日历</a>
-            </div>
-          </div>
-        </section>
+        <LaunchHeroCard launch={launch} titleId="launch-detail-title" />
 
         <div className="detail-layout">
           <article className="detail-content">
@@ -336,7 +250,7 @@ export function LaunchDetail({ launch, newsReturnPath = null }: { launch: Launch
           </article>
 
           <aside className="detail-sidebar">
-            <section className="detail-live-card">
+            <section className="detail-live-card" id="launch-live">
               <SectionHeading title={primaryVideoUrl ? "官方直播" : "任务直播"} eyebrow="LIVE & REPLAY" />
               {primaryVideoUrl ? (
                 <>

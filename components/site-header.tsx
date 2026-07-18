@@ -57,8 +57,8 @@ export function SiteHeader({
   return (
     <header className="topbar">
       <Link className="brand" href="/" aria-label="When Liftoff 首页">
-        <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={30} height={30} priority />
-        <span>when<b>liftoff</b></span>
+        <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={40} height={40} priority />
+        <span className="brand-wordmark">when<b className="brand-liftoff">liftoff</b></span>
       </Link>
       <nav className="primary-nav" aria-label="主导航">
         <Link className={active === "home" ? "active" : undefined} href="/">首页</Link>

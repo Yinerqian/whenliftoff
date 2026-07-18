@@ -1,14 +1,12 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { HomeCountdown } from "@/components/home-countdown";
-import { NewsImage } from "@/components/news-image";
-import { resolveLaunchImageUrl } from "@/lib/image";
-import { getLaunchStatusMeta } from "@/lib/launch-status";
-import { formatBeijingTime } from "@/lib/time";
+import { ChartAvatar } from "@/components/chart-avatar";
+import { HomeLatestNews } from "@/components/home-latest-news";
+import { LaunchHeroCard } from "@/components/launch-hero-card";
 import type { NewsListItem } from "@/lib/news-types";
 import type { HomeLaunchStats, HomeMonthlyLaunchStat, Launch } from "@/lib/types";
 
-type HomeIconName = "rocket" | "check" | "target" | "users" | "globe" | "pad" | "pin" | "play" | "calendar";
+type HomeIconName = "rocket" | "check" | "target" | "users" | "globe" | "pad" | "calendar";
 
 function HomeIcon({ name }: { name: HomeIconName }) {
   const paths: Record<HomeIconName, ReactNode> = {
@@ -18,18 +16,15 @@ function HomeIcon({ name }: { name: HomeIconName }) {
     users: <><path d="M8.5 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.8 11a2.4 2.4 0 1 0 0-4.8"/><path d="M3.5 19v-1.4c0-2.4 2-4.3 4.3-4.3h1.4c2.4 0 4.3 2 4.3 4.3V19M15 13.2c3.2-.5 5.5 1.3 5.5 4.1V19"/></>,
     globe: <><circle cx="12" cy="12" r="8.5"/><path d="M3.8 12h16.4M12 3.5c2.2 2.3 3.3 5.1 3.3 8.5S14.2 18.2 12 20.5C9.8 18.2 8.7 15.4 8.7 12S9.8 5.8 12 3.5Z"/></>,
     pad: <><path d="M5 20h14M8 20v-5h8v5M10 15V8h4v7M12 8V3M9 11h6"/></>,
-    pin: <><path d="M19 10c0 5-7 10-7 10S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.2"/></>,
-    play: <><circle cx="12" cy="12" r="8.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5Z"/></>,
     calendar: <><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3v5M16 3v5M4 10h16"/></>,
   };
   return <svg className="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
 function formatPeriod(stats: HomeLaunchStats | null) {
-  if (!stats) return "过去 12 个完整月";
+  if (!stats) return "本年迄今";
   const start = stats.period_start.slice(0, 7).replace("-", ".");
   const endDate = new Date(stats.period_end);
-  endDate.setUTCMonth(endDate.getUTCMonth() - 1);
   const end = `${endDate.getUTCFullYear()}.${String(endDate.getUTCMonth() + 1).padStart(2, "0")}`;
   return `${start}—${end}`;
 }
@@ -107,7 +102,7 @@ function MonthlyChart({ values }: { values: HomeMonthlyLaunchStat[] }) {
         <div className="home-chart-legend"><span className="is-total">发射总数</span><span className="is-success">成功发射</span></div>
       </header>
       {values.length ? (
-        <svg className="home-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="过去十二个月发射总数和成功发射次数折线图">
+        <svg className="home-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="本年度各月发射总数和成功发射次数折线图">
           <defs>
             <linearGradient id="home-total-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#336fe8" stopOpacity=".2"/><stop offset="1" stopColor="#336fe8" stopOpacity="0"/></linearGradient>
           </defs>
@@ -120,7 +115,7 @@ function MonthlyChart({ values }: { values: HomeMonthlyLaunchStat[] }) {
           <path className="home-chart-line is-total" d={totalPath} />
           <path className="home-chart-line is-success" d={successPath} />
           {total.map((point, index) => <g key={`total-${values[index].month}`}><circle className="home-chart-dot is-total" cx={point.x} cy={point.y} r="3.6"/><text className="home-chart-value is-total" x={point.x} y={point.y - 11}>{point.value}</text></g>)}
-          {successful.map((point, index) => <circle key={`success-${values[index].month}`} className="home-chart-dot is-success" cx={point.x} cy={point.y} r="3"/>)}
+          {successful.map((point, index) => <g key={`success-${values[index].month}`}><circle className="home-chart-dot is-success" cx={point.x} cy={point.y} r="3"/><text className="home-chart-value is-success" x={point.x} y={point.y + 17}>{point.value}</text></g>)}
           {values.map((item, index) => <text key={item.month} className="home-chart-x-label" x={total[index].x} y={height - 18}>{item.month.slice(5)}月</text>)}
         </svg>
       ) : <ChartEmpty />}
@@ -136,18 +131,22 @@ function ChartEmpty() {
 function ProviderChart({ stats }: { stats: HomeLaunchStats | null }) {
   const values = stats?.providers ?? [];
   const max = Math.max(1, ...values.map((item) => item.count));
+  const colors = ["#ff5a2b", "#3977eb", "#16a085", "#7c5ce0", "#e3a41a", "#0f8ea8", "#d65076", "#5b6b7c", "#7aaa24", "#9b59b6"];
   return (
     <figure className="home-chart-card home-ranking-card" aria-labelledby="home-provider-title">
       <header className="home-chart-heading"><div><h3 id="home-provider-title">发射机构 Top 10</h3><p>{values[0] ? `${values[0].abbrev || values[0].name} 以 ${values[0].share}% 位居首位` : "按发射次数排序"}</p></div></header>
       {values.length ? <ol className="home-ranking-list">{values.map((item, index) => (
-        <li key={item.name} title={item.name}>
-          <span className="home-rank-number">{index + 1}</span>
+        <li key={item.name} style={{ "--home-row-color": colors[index % colors.length] } as CSSProperties}>
+          <span className="home-chart-avatar home-provider-avatar" data-tooltip={item.name} aria-label={item.name} tabIndex={0}>
+            <ChartAvatar src={item.image_url} fallback={(item.abbrev || item.name).slice(0, 2).toUpperCase()} imageClassName="is-logo" />
+            <small>{index + 1}</small>
+          </span>
           <strong>{item.abbrev || item.name}</strong>
           <span className="home-ranking-track"><i style={{ "--home-bar": `${(item.count / max) * 100}%` } as CSSProperties}/></span>
           <b>{item.count}</b><small>{item.share}%</small>
         </li>
       ))}</ol> : <ChartEmpty />}
-      <figcaption className="sr-only">过去十二个月发射次数最多的十家机构。</figcaption>
+      <figcaption className="sr-only">本年度发射次数最多的十家机构。</figcaption>
     </figure>
   );
 }
@@ -165,7 +164,9 @@ function CountryChart({ stats }: { stats: HomeLaunchStats | null }) {
         <div className={`home-country-column is-${index + 1}`} key={item.code} title={`${item.name}: ${item.count}`}>
           <strong>{item.count}</strong>
           <span><i style={{ "--home-column": `${Math.max(8, (item.count / max) * 100)}%` } as CSSProperties}/></span>
-          <b aria-label={countryNames[item.code] || item.name}>{countryMarks[item.code] || item.code.slice(0, 1)}</b>
+          <b className="home-chart-avatar home-country-avatar" data-tooltip={countryNames[item.code] || item.name} aria-label={countryNames[item.code] || item.name} tabIndex={0}>
+            <ChartAvatar src={item.flag_url} fallback={countryMarks[item.code] || item.code.slice(0, 1)} imageClassName="is-flag" />
+          </b>
           <small>{item.code}</small>
         </div>
       ))}</div> : <ChartEmpty />}
@@ -182,70 +183,33 @@ function RocketChart({ stats }: { stats: HomeLaunchStats | null }) {
       <header className="home-chart-heading"><div><h3 id="home-rocket-title">主力火箭型号</h3><p>{values[0] ? `${values[0].name} 执行 ${values[0].count} 次任务` : "按火箭配置统计"}</p></div></header>
       {values.length ? <ol className="home-rocket-ranking">{values.map((item, index) => (
         <li key={item.name} title={item.name}>
-          <span>{index + 1}</span><i aria-hidden="true"><HomeIcon name="rocket" /></i><strong>{item.name}</strong>
+          <span>{index + 1}</span><i className="home-chart-avatar home-rocket-avatar" data-tooltip={item.name} aria-label={item.name} tabIndex={0}><ChartAvatar src={item.image_url} fallback="🚀" imageClassName="is-rocket" /></i><strong>{item.name}</strong>
           <span className="home-lollipop"><i style={{ "--home-bar": `${(item.count / max) * 100}%` } as CSSProperties}/><b style={{ "--home-left": `${(item.count / max) * 100}%` } as CSSProperties}/></span>
           <em>{item.count}</em><small>{item.share}%</small>
         </li>
       ))}</ol> : <ChartEmpty />}
-      <figcaption className="sr-only">过去十二个月使用次数最多的火箭型号。</figcaption>
+      <figcaption className="sr-only">本年度使用次数最多的火箭型号。</figcaption>
     </figure>
   );
 }
 
-function formatNewsDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
-}
-
-function LatestNews({ news }: { news: NewsListItem | null }) {
-  if (!news) {
-    return <div className="home-news-empty"><p>最新航天动态暂时不可用。</p><Link href="/news">进入新闻中心 →</Link></div>;
-  }
-  const href = `/news/${news.content_type}/${news.external_id}`;
-  const title = news.title_cn || news.title;
-  const summary = news.summary_cn || news.summary || "点击查看这条航天动态的中文摘要与来源信息。";
-  const typeLabel = news.content_type === "blog" ? "机构博客" : news.content_type === "report" ? "行业报告" : "航天新闻";
-  return (
-    <article className="home-news-feature">
-      <Link className="home-news-image" href={href} aria-label={title}><NewsImage src={news.image_url} alt="" /></Link>
-      <div className="home-news-copy">
-        <p className="home-news-meta"><span>{typeLabel}</span><i>·</i>{news.news_site}<i>·</i>{formatNewsDate(news.published_at)}</p>
-        <h3><Link href={href}>{title}</Link></h3>
-        <p className="home-news-summary">{summary}</p>
-        <div className="home-news-tags"><span>{typeLabel}</span><span>{news.news_site}</span>{news.featured && <span>编辑推荐</span>}</div>
-        <Link className="home-news-button" href={href}>阅读全文 <span aria-hidden="true">→</span></Link>
-      </div>
-    </article>
-  );
-}
-
 export function HomePageView({ launch, stats, news }: { launch: Launch | null; stats: HomeLaunchStats | null; news: NewsListItem | null }) {
-  const image = resolveLaunchImageUrl(launch?.image_url) || "/assets/whenliftoff/hero_launch.jpg";
-  const launchName = launch ? launch.name_cn || launch.name : "下一次发射任务待公布";
-  const status = getLaunchStatusMeta(launch?.status, launch?.status_cn);
   const launchHref = launch ? `/launches/${launch.external_id}?from=%2F` : "/launches";
   const statValue = (value: number | undefined, suffix = "") => value === undefined ? "--" : `${value}${suffix}`;
   const stale = isStale(stats?.generated_at);
+  const statisticsYear = stats ? new Date(stats.period_start).getUTCFullYear() : new Date().getUTCFullYear();
 
   return (
     <main className="home-page">
-      <section className="home-launch-hero" aria-labelledby="home-launch-title">
-        <NewsImage className="home-launch-image" src={image} alt="" aria-hidden="true" />
-        <div className="home-launch-shade" />
-        <div className="home-launch-copy">
-          <span className={`home-launch-status state-${status.tone}`}>{status.label}</span>
-          <header><h1 id="home-launch-title">{launchName}</h1><p>{launch?.rocket_name || "火箭型号待确认"}</p></header>
-          <div className="home-launch-provider"><span><HomeIcon name="rocket" /></span><strong>{launch?.provider || "发射机构待确认"}</strong>{launch?.provider_cn && <small>（{launch.provider_cn}）</small>}</div>
-          <p className="home-launch-location"><HomeIcon name="pin" />{launch?.location_cn || launch?.location || "发射地点待确认"}{launch?.pad ? ` · ${launch.pad}` : ""}</p>
-          <HomeCountdown value={launch?.launch_time_utc ?? null} />
-          <div className="home-launch-actions">
-            <Link className="home-launch-primary" href={launchHref}><HomeIcon name="calendar" />查看任务详情</Link>
-            {launch?.webcast_url && <a className="home-launch-secondary" href={launch.webcast_url} target="_blank" rel="noreferrer"><HomeIcon name="play" />观看直播</a>}
-          </div>
-        </div>
+      <LaunchHeroCard launch={launch} titleId="home-launch-title" detailHref={launchHref} />
+
+      <section className="home-news home-news-after-launch" aria-labelledby="home-news-title">
+        <div className="home-section-heading"><div><h2 id="home-news-title">最新航天动态</h2><p>聚合全球航天新闻、博客与行业报告</p></div><Link href="/news">进入新闻中心 <span aria-hidden="true">→</span></Link></div>
+        <HomeLatestNews news={news} />
       </section>
 
       <section className="home-kpis" aria-labelledby="home-kpis-title">
-        <div className="home-section-line"><h2 id="home-kpis-title">过去 12 个月</h2><p className={stale ? "is-stale" : undefined}>数据更新：{formatUpdated(stats?.generated_at)}{stale && " · 更新延迟"}</p></div>
+        <div className="home-section-line"><h2 id="home-kpis-title">{statisticsYear} 年迄今</h2><p className={stale ? "is-stale" : undefined}>数据更新：{formatUpdated(stats?.generated_at)}{stale && " · 更新延迟"}</p></div>
         <div className="home-kpi-grid">
           <KpiCard icon="rocket" label="发射总数" value={statValue(stats?.total_launches)} />
           <KpiCard icon="check" label="成功发射" value={statValue(stats?.successful_launches)} />
@@ -264,11 +228,6 @@ export function HomePageView({ launch, stats, news }: { launch: Launch | null; s
           <CountryChart stats={stats} />
           <RocketChart stats={stats} />
         </div>
-      </section>
-
-      <section className="home-news" aria-labelledby="home-news-title">
-        <div className="home-section-heading"><div><h2 id="home-news-title">最新航天动态</h2><p>聚合全球航天新闻、博客与行业报告</p></div><Link href="/news">进入新闻中心 <span aria-hidden="true">→</span></Link></div>
-        <LatestNews news={news} />
       </section>
 
       <footer className="home-data-footer">

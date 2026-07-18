@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toLaunchRecord } from "@/lib/launch-library";
-import { aggregateHomeLaunchStatistics, completeUtcMonthRange } from "@/lib/launch-statistics";
+import { aggregateHomeLaunchStatistics, currentUtcYearRange } from "@/lib/launch-statistics";
 import type { LaunchLibraryLaunch } from "@/lib/types";
 
 function launch(
@@ -12,43 +12,44 @@ function launch(
   rocket: string,
   pad = "Pad A",
 ): LaunchLibraryLaunch {
+  const alpha2: Record<string, string> = { USA: "US", NZL: "NZ", CHN: "CN" };
   return {
     id,
     slug: id,
     name: `Mission ${id}`,
     net,
     status: { abbrev: status },
-    launch_service_provider: { name: provider, abbrev: provider.slice(0, 4).toUpperCase() },
-    rocket: { configuration: { full_name: rocket } },
+    launch_service_provider: { name: provider, abbrev: provider.slice(0, 4).toUpperCase(), logo: { thumbnail_url: `https://images.test/${provider}.png` } },
+    rocket: { configuration: { full_name: rocket, image: { thumbnail_url: `https://images.test/${rocket}.jpg` } } },
     pad: {
       id: Number(id.replace(/\D/g, "")) || 1,
       name: pad,
-      location: { name: `${country} launch site`, country: { name: country, alpha_3_code: country } },
+      location: { name: `${country} launch site`, country: { name: country, alpha_2_code: alpha2[country], alpha_3_code: country } },
     },
   };
 }
 
 describe("home launch statistics", () => {
-  it("uses the previous twelve complete UTC months", () => {
-    expect(completeUtcMonthRange(new Date("2026-07-18T12:00:00Z"))).toEqual({
-      start: "2025-07-01T00:00:00.000Z",
-      end: "2026-07-01T00:00:00.000Z",
+  it("uses the current UTC calendar year through now", () => {
+    expect(currentUtcYearRange(new Date("2026-07-18T12:00:00Z"))).toEqual({
+      start: "2026-01-01T00:00:00.000Z",
+      end: "2026-07-18T12:00:00.000Z",
     });
   });
 
   it("builds complete monthly buckets and terminal-status success metrics", () => {
     const stats = aggregateHomeLaunchStatistics([
-      launch("1", "2025-07-10T10:00:00Z", "Success", "SpaceX", "USA", "Falcon 9"),
-      launch("2", "2025-07-21T10:00:00Z", "Failure", "Rocket Lab", "NZL", "Electron", "Pad B"),
-      launch("3", "2025-09-04T10:00:00Z", "Partial Failure", "CASC", "CHN", "Long March 2", "Pad C"),
-      launch("4", "2025-09-15T10:00:00Z", "TBD", "SpaceX", "USA", "Falcon 9"),
-      launch("outside", "2026-07-02T10:00:00Z", "Success", "SpaceX", "USA", "Falcon 9"),
-    ], "2025-07-01T00:00:00.000Z", "2026-07-01T00:00:00.000Z", "2026-07-18T00:00:00Z");
+      launch("1", "2026-01-10T10:00:00Z", "Success", "SpaceX", "USA", "Falcon 9"),
+      launch("2", "2026-01-21T10:00:00Z", "Failure", "Rocket Lab", "NZL", "Electron", "Pad B"),
+      launch("3", "2026-03-04T10:00:00Z", "Partial Failure", "CASC", "CHN", "Long March 2", "Pad C"),
+      launch("4", "2026-03-15T10:00:00Z", "TBD", "SpaceX", "USA", "Falcon 9"),
+      launch("outside", "2025-12-31T23:59:59Z", "Success", "SpaceX", "USA", "Falcon 9"),
+    ], "2026-01-01T00:00:00.000Z", "2026-07-18T12:00:00.000Z", "2026-07-18T12:00:00Z");
 
-    expect(stats.monthly).toHaveLength(12);
-    expect(stats.monthly[0]).toEqual({ month: "2025-07", total: 2, successful: 1 });
-    expect(stats.monthly[1]).toEqual({ month: "2025-08", total: 0, successful: 0 });
-    expect(stats.monthly[2]).toEqual({ month: "2025-09", total: 2, successful: 0 });
+    expect(stats.monthly).toHaveLength(7);
+    expect(stats.monthly[0]).toEqual({ month: "2026-01", total: 2, successful: 1 });
+    expect(stats.monthly[1]).toEqual({ month: "2026-02", total: 0, successful: 0 });
+    expect(stats.monthly[2]).toEqual({ month: "2026-03", total: 2, successful: 0 });
     expect(stats).toMatchObject({
       total_launches: 4,
       successful_launches: 1,
@@ -58,8 +59,9 @@ describe("home launch statistics", () => {
       active_countries: 3,
       active_pads: 4,
     });
-    expect(stats.providers[0]).toMatchObject({ name: "SpaceX", count: 2, share: 50 });
-    expect(stats.rockets[0]).toMatchObject({ name: "Falcon 9", count: 2, share: 50 });
+    expect(stats.providers[0]).toMatchObject({ name: "SpaceX", image_url: "https://images.test/SpaceX.png", count: 2, share: 50 });
+    expect(stats.countries[0]).toMatchObject({ code: "USA", flag_url: "https://flagcdn.io/flags/4x3/us.svg" });
+    expect(stats.rockets[0]).toMatchObject({ name: "Falcon 9", image_url: "https://images.test/Falcon 9.jpg", count: 2, share: 50 });
   });
 
   it("normalizes the Launch Library 2.3 nested country code", () => {

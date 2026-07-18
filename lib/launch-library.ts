@@ -1,7 +1,7 @@
 import { localizeProvider, localizeStatus } from "@/lib/localization";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { toLaunchDetails } from "@/lib/launch-details";
-import { completeUtcMonthRange } from "@/lib/launch-statistics";
+import { currentUtcYearRange } from "@/lib/launch-statistics";
 import type { Launch, LaunchLibraryLaunch } from "@/lib/types";
 
 export type UpstreamLaunchPage = {
@@ -50,12 +50,33 @@ export function fetchRecentLaunches(): Promise<LaunchLibraryLaunch[]> {
   return fetchLaunchPage("previous", 24);
 }
 
-export async function fetchCompletedLaunchesForStatistics(now = new Date()): Promise<{
+function updatedAtValue(launch: LaunchLibraryLaunch) {
+  const value = Date.parse(launch.last_updated ?? "");
+  return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
+}
+
+/**
+ * Launch Library can briefly return different snapshots for the same launch
+ * from its upcoming and previous list endpoints. Keep the newest snapshot so
+ * a stale previous-page cache cannot overwrite a postponement or final status.
+ */
+export function selectLatestLaunchSnapshots(...groups: LaunchLibraryLaunch[][]) {
+  const launches = new Map<string, LaunchLibraryLaunch>();
+  for (const launch of groups.flat()) {
+    const existing = launches.get(launch.id);
+    if (!existing || updatedAtValue(launch) >= updatedAtValue(existing)) {
+      launches.set(launch.id, launch);
+    }
+  }
+  return [...launches.values()];
+}
+
+export async function fetchCurrentYearLaunchesForStatistics(now = new Date()): Promise<{
   launches: LaunchLibraryLaunch[];
   periodStart: string;
   periodEnd: string;
 }> {
-  const { start: periodStart, end: periodEnd } = completeUtcMonthRange(now);
+  const { start: periodStart, end: periodEnd } = currentUtcYearRange(now);
   const launches: LaunchLibraryLaunch[] = [];
   const limit = 100;
 
@@ -63,7 +84,7 @@ export async function fetchCompletedLaunchesForStatistics(now = new Date()): Pro
     const url = launchLibraryUrl("launches/previous/");
     url.searchParams.set("limit", String(limit));
     url.searchParams.set("offset", String(offset));
-    url.searchParams.set("mode", "normal");
+    url.searchParams.set("mode", "detailed");
     url.searchParams.set("ordering", "net");
     url.searchParams.set("net__gte", periodStart);
     url.searchParams.set("net__lt", periodEnd);
@@ -82,6 +103,17 @@ export async function fetchLaunchById(id: string): Promise<LaunchLibraryLaunch |
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Launch Library detail request failed (${response.status}).`);
   return await response.json() as LaunchLibraryLaunch;
+}
+
+export async function fetchLaunchesByIdsFresh(ids: string[]): Promise<LaunchLibraryLaunch[]> {
+  const uniqueIds = [...new Set(ids)].slice(0, 100);
+  if (!uniqueIds.length) return [];
+  const url = launchLibraryUrl("launches/");
+  url.searchParams.set("id", uniqueIds.join(","));
+  url.searchParams.set("limit", String(uniqueIds.length));
+  url.searchParams.set("mode", "normal");
+  const payload = await requestLaunchPage(url);
+  return payload.results ?? [];
 }
 
 export function toLaunchRecord(source: LaunchLibraryLaunch): Omit<Launch, "name_cn" | "mission_description_cn" | "location_cn" | "synced_at"> {

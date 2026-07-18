@@ -118,13 +118,16 @@ export type HomeMonthlyLaunchStat = {
 export type HomeProviderLaunchStat = {
   name: string;
   abbrev: string | null;
+  image_url: string | null;
   count: number;
   share: number;
 };
 
 export type HomeCountryLaunchStat = {
   code: string;
+  alpha_2_code: string | null;
   name: string;
+  flag_url: string | null;
   count: number;
   share: number;
   is_other?: boolean;
@@ -132,6 +135,7 @@ export type HomeCountryLaunchStat = {
 
 export type HomeRocketLaunchStat = {
   name: string;
+  image_url: string | null;
   count: number;
   share: number;
   is_other?: boolean;
@@ -176,11 +180,14 @@ export type LaunchLibraryLaunch = {
     name?: string | null;
     abbrev?: string | null;
     type?: { name?: string | null } | null;
+    logo?: LaunchLibraryImage | null;
+    social_logo?: LaunchLibraryImage | null;
   } | null;
   rocket?: {
     configuration?: {
       full_name?: string | null;
       variant?: string | null;
+      image?: LaunchLibraryImage | null;
       manufacturer?: { name?: string | null } | null;
       reusable?: boolean | null;
       min_stage?: number | null;

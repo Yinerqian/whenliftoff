@@ -193,8 +193,8 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
     document.documentElement.dataset.newsPointerNavigation = "true";
     const surface = event.currentTarget.closest<HTMLElement>(".news-card, .news-feature") ?? event.currentTarget;
     const bounds = surface.getBoundingClientRect();
-    const x = Math.min(Math.max(event.clientX - bounds.left, 58), Math.max(bounds.width - 58, 58));
-    const y = Math.min(Math.max(event.clientY - bounds.top, 28), Math.max(bounds.height - 28, 28));
+    const x = bounds.width / 2;
+    const y = bounds.height / 2;
     if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
     setNavigationState({ href, x, y });
     navigationResetRef.current = window.setTimeout(() => {

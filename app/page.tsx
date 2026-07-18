@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "whenliftoff - 全球火箭发射时间与航天新闻",
-  description: "查看下一次全球火箭发射倒计时、过去十二个月发射统计和最新航天新闻。",
+  description: "查看下一次全球火箭发射倒计时、本年度发射统计和最新航天新闻。",
   openGraph: {
     title: "whenliftoff - 全球火箭发射时间与航天新闻",
     description: "全球火箭发射动态、数据统计与航天新闻的中文化展示。",
