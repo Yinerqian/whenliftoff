@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
 import { LaunchDetail } from "@/components/launch-detail";
 import { getLaunchById } from "@/lib/launch-repository";
 
@@ -35,5 +36,8 @@ export default async function LaunchDetailPage({ params, searchParams }: DetailP
   const returnPath = newsReturnPath((await searchParams).from);
   const launch = await getLaunchById(id).catch(() => null);
   if (!launch) notFound();
-  return <LaunchDetail launch={launch} newsReturnPath={returnPath} />;
+  return <>
+    <LaunchAutoRefresh launchTimes={[launch.launch_time_utc]} />
+    <LaunchDetail launch={launch} newsReturnPath={returnPath} />
+  </>;
 }

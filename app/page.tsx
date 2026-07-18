@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
 import { HomePageView } from "@/components/home-page";
 import { getHomeLaunchStatistics, getNextUpcomingLaunch } from "@/lib/launch-repository";
 import { getLatestNews } from "@/lib/news-repository";
@@ -21,11 +22,13 @@ export default async function HomePage() {
     getLatestNews(),
   ]);
 
-  return (
+  const launch = launchResult.status === "fulfilled" ? launchResult.value : null;
+  return <>
+    <LaunchAutoRefresh launchTimes={[launch?.launch_time_utc]} />
     <HomePageView
-      launch={launchResult.status === "fulfilled" ? launchResult.value : null}
+      launch={launch}
       stats={statisticsResult.status === "fulfilled" ? statisticsResult.value : null}
       news={newsResult.status === "fulfilled" ? newsResult.value : null}
     />
-  );
+  </>;
 }

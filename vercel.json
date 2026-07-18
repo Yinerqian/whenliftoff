@@ -1,6 +1,5 @@
 {
   "crons": [
-    { "path": "/api/cron/sync-launches", "schedule": "0 0 * * *" },
     { "path": "/api/cron/sync-news", "schedule": "15 0 * * *" }
   ]
 }

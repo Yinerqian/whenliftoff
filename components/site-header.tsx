@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { FormEventHandler, MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEventHandler, type MouseEvent } from "react";
 
 export type SiteSection = "home" | "launches" | "news";
 
@@ -40,6 +40,48 @@ export function SiteHeader({
   searchPlaceholder = "搜索火箭、任务、机构…",
   searchLabel = "搜索火箭、任务或机构",
 }: SiteHeaderProps) {
+  const navRef = useRef<HTMLElement>(null);
+  const [navIndicator, setNavIndicator] = useState({ left: 0, right: 0, trackWidth: 1, ready: false });
+  const [navIndicatorCanAnimate, setNavIndicatorCanAnimate] = useState(false);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const updateIndicator = () => {
+      const activeLink = nav.querySelector<HTMLAnchorElement>(`a[data-section="${active}"]`);
+      if (!activeLink) return;
+      const trackWidth = nav.scrollWidth;
+      const next = {
+        left: activeLink.offsetLeft,
+        right: Math.max(0, trackWidth - activeLink.offsetLeft - activeLink.offsetWidth),
+        trackWidth,
+        ready: true,
+      };
+      setNavIndicator((current) => current.left === next.left
+        && current.right === next.right
+        && current.trackWidth === next.trackWidth
+        && current.ready
+        ? current
+        : next);
+    };
+
+    updateIndicator();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateIndicator);
+    observer?.observe(nav);
+    nav.querySelectorAll("a").forEach((link) => observer?.observe(link));
+    window.addEventListener("resize", updateIndicator);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateIndicator);
+    };
+  }, [active]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setNavIndicatorCanAnimate(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   function handleScheduleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (window.location.pathname !== "/launches") return;
 
@@ -60,10 +102,23 @@ export function SiteHeader({
         <Image className="brand-mark" src="/assets/whenliftoff/brand-mark.png" alt="" width={40} height={40} priority />
         <span className="brand-wordmark">when<b className="brand-liftoff">liftoff</b></span>
       </Link>
-      <nav className="primary-nav" aria-label="主导航">
-        <Link className={active === "home" ? "active" : undefined} href="/">首页</Link>
-        <Link className={active === "launches" ? "active" : undefined} href="/launches" onClick={handleScheduleClick}>发射日程</Link>
-        <Link className={active === "news" ? "active" : undefined} href="/news">新闻</Link>
+      <nav
+        ref={navRef}
+        className={`primary-nav${navIndicator.ready ? " has-indicator" : ""}${navIndicatorCanAnimate ? " indicator-can-animate" : ""}`}
+        aria-label="主导航"
+      >
+        <span
+          className="primary-nav-indicator"
+          aria-hidden="true"
+          style={{
+            opacity: navIndicator.ready ? 1 : 0,
+            width: `${navIndicator.trackWidth}px`,
+            clipPath: `inset(0 ${navIndicator.right}px 0 ${navIndicator.left}px round 7px)`,
+          }}
+        />
+        <Link data-section="home" className={active === "home" ? "active" : undefined} href="/">首页</Link>
+        <Link data-section="launches" className={active === "launches" ? "active" : undefined} href="/launches" onClick={handleScheduleClick}>发射日程</Link>
+        <Link data-section="news" className={active === "news" ? "active" : undefined} href="/news">新闻</Link>
       </nav>
       <form className="top-search" action={searchAction} method="get" onSubmit={onSearchSubmit}>
         <SearchIcon />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncLaunches } from "@/lib/sync-launches";
+import { parseLaunchSyncMode, syncLaunches } from "@/lib/sync-launches";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,8 +10,12 @@ export async function GET(request: NextRequest) {
   if (!secret || authorization !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const requestedMode = parseLaunchSyncMode(request.nextUrl.searchParams.get("mode"));
+  if (!requestedMode) {
+    return NextResponse.json({ error: "mode must be either full or hot." }, { status: 400 });
+  }
   try {
-    return NextResponse.json(await syncLaunches());
+    return NextResponse.json(await syncLaunches(requestedMode));
   } catch (error) {
     const message = error instanceof Error
       ? error.message

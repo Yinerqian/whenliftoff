@@ -75,10 +75,12 @@ export async function fetchCurrentYearLaunchesForStatistics(now = new Date()): P
   launches: LaunchLibraryLaunch[];
   periodStart: string;
   periodEnd: string;
+  apiRequests: number;
 }> {
   const { start: periodStart, end: periodEnd } = currentUtcYearRange(now);
   const launches: LaunchLibraryLaunch[] = [];
   const limit = 100;
+  let apiRequests = 0;
 
   for (let offset = 0, page = 0; page < 20; page += 1, offset += limit) {
     const url = launchLibraryUrl("launches/previous/");
@@ -89,11 +91,12 @@ export async function fetchCurrentYearLaunchesForStatistics(now = new Date()): P
     url.searchParams.set("net__gte", periodStart);
     url.searchParams.set("net__lt", periodEnd);
     const payload = await requestLaunchPage(url);
+    apiRequests += 1;
     launches.push(...(payload.results ?? []));
     if (!payload.next || launches.length >= (payload.count ?? Number.POSITIVE_INFINITY)) break;
   }
 
-  return { launches, periodStart, periodEnd };
+  return { launches, periodStart, periodEnd, apiRequests };
 }
 
 export async function fetchLaunchById(id: string): Promise<LaunchLibraryLaunch | null> {
@@ -144,5 +147,6 @@ export function toLaunchRecord(source: LaunchLibraryLaunch): Omit<Launch, "name_
     webcast_url: details.video_links[0]?.url ?? source.vidURLs?.[0] ?? null,
     source_url: details.info_links[0]?.url ?? source.url ?? null,
     api_updated_at: source.last_updated ?? null,
+    details,
   };
 }

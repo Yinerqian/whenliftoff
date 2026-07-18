@@ -21,7 +21,7 @@ export type Launch = {
   source_url: string | null;
   api_updated_at: string | null;
   synced_at: string;
-  details?: LaunchDetails;
+  details?: LaunchDetails | null;
 };
 
 export type LaunchTimelineEvent = {

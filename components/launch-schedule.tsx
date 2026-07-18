@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
+import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
 import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
@@ -17,6 +18,11 @@ type LaunchScope = "month" | "future";
 type TimelineGroup = {
   key: string;
   launches: Launch[];
+};
+type LiveLaunchSnapshot = {
+  items: Launch[];
+  recentCompleted: Launch[];
+  lastSyncedAt: string | null;
 };
 type LaunchNavigationHandlers = {
   isNavigating: boolean;
@@ -246,6 +252,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
   const router = useRouter();
   const [filters, setFilters] = useState<Filters>({ ...initialFilters, q: initialSearch });
   const [result, setResult] = useState(initial);
+  const [recentLaunches, setRecentLaunches] = useState(recentCompleted);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
   const [providerExpanded, setProviderExpanded] = useState(false);
@@ -312,6 +319,10 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  useEffect(() => {
+    setRecentLaunches(recentCompleted);
+  }, [recentCompleted]);
+
   useEffect(() => () => {
     if (newCardsTimerRef.current !== null) window.clearTimeout(newCardsTimerRef.current);
     if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
@@ -377,6 +388,21 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     }
   }, []);
 
+  const refreshVisibleLaunches = useCallback(async () => {
+    const ids = result.items.map((launch) => launch.external_id);
+    const params = new URLSearchParams({ ids: ids.join(",") });
+    const response = await fetch(`/api/launches/live?${params.toString()}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const snapshot = await response.json() as LiveLaunchSnapshot;
+    const freshById = new Map(snapshot.items.map((launch) => [launch.external_id, launch]));
+    setResult((current) => ({
+      ...current,
+      items: current.items.map((launch) => freshById.get(launch.external_id) ?? launch),
+      lastSyncedAt: snapshot.lastSyncedAt ?? current.lastSyncedAt,
+    }));
+    setRecentLaunches(snapshot.recentCompleted);
+  }, [result.items]);
+
   useEffect(() => {
     function handleHeaderSearch(event: Event) {
       const q = event instanceof CustomEvent && typeof event.detail === "string" ? event.detail : "";
@@ -409,6 +435,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
 
   return (
     <main className="launch-route-main">
+      <LaunchAutoRefresh launchTimes={result.items.map((launch) => launch.launch_time_utc)} onRefresh={refreshVisibleLaunches} />
       <section className="dashboard launch-page-content" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
         <section className="filters-row" id="agencies" aria-label="发射机构分类">
@@ -514,8 +541,8 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
           <div className={`side-column${loadingMode === "replace" ? " is-updating" : ""}`}>
             <UpcomingLaunchCard launch={hero} key={hero?.external_id ?? "upcoming-empty"} />
             <section className="next-list">
-              <div className="side-heading"><strong>最近已发射 · CST</strong><span>{recentCompleted.length} 场</span></div>
-              {recentCompleted.map((launch) => (
+              <div className="side-heading"><strong>最近已发射 · CST</strong><span>{recentLaunches.length} 场</span></div>
+              {recentLaunches.map((launch) => (
                 <Link href={`/launches/${launch.external_id}`} key={launch.external_id}>
                   <strong>{formatBeijingClock(launch.launch_time_utc)}</strong>
                   <span>{formatRecentLaunchDate(launch.launch_time_utc)}</span>
@@ -523,7 +550,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
                   <em>—</em>
                 </Link>
               ))}
-              {!recentCompleted.length && <p className="next-list-empty">暂无已完成的发射记录</p>}
+              {!recentLaunches.length && <p className="next-list-empty">暂无已完成的发射记录</p>}
             </section>
           </div>
         </div>

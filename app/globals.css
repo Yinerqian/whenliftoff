@@ -137,9 +137,22 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
 }
 .brand-mark { width: 40px; height: 40px; flex: 0 0 auto; object-fit: contain; }
 .site-frame .brand { font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif; }
-.primary-nav { display: flex; align-items: center; gap: 6px; margin-left: 0; white-space: nowrap; }
+.primary-nav { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 0; white-space: nowrap; }
 .site-frame .primary-nav { font-weight: 700; }
+.primary-nav-indicator {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--accent-soft);
+  will-change: clip-path;
+}
+.primary-nav.indicator-can-animate .primary-nav-indicator {
+  transition: clip-path 220ms cubic-bezier(.77, 0, .175, 1), opacity 140ms cubic-bezier(.23, 1, .32, 1);
+}
 .primary-nav a {
+  position: relative;
+  z-index: 1;
   padding: 9px 12px;
   border-radius: 7px;
   color: var(--ink);
@@ -147,6 +160,7 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
   transition: color 160ms ease, background-color 160ms ease, transform 120ms var(--ease-out);
 }
 .primary-nav a.active { color: var(--accent); background: var(--accent-soft); }
+.site-frame.app-shell .primary-nav.has-indicator a.active { background: transparent; }
 .primary-nav a:active { transform: scale(.97); }
 .top-search, .schedule-search {
   display: flex;
@@ -594,6 +608,7 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
   .news-card, .news-card-image img, .news-feature, .news-navigation-feedback, .news-primary-button, .news-share-card button { animation: none; transition-duration: 0ms; }
   .news-skeleton-block, .news-navigation-spinner, .launch-navigation-spinner { animation: none; }
   .launch-row, .launch-navigation-feedback { animation: none; transition-duration: 0ms; }
+  .primary-nav-indicator { transition-duration: 0ms !important; }
   ::view-transition-old(news-page-content), ::view-transition-new(news-page-content) { animation: none; }
 }
 
@@ -663,11 +678,14 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
   .content-grid { margin-top: 19px; }
   .upcoming-card { display: block; }
   .upcoming-visual { min-height: 170px; }
-  .timeline-group { grid-template-columns: 58px minmax(0, 1fr); gap: 7px; }
-  .date-rail { padding-right: 10px; }
-  .date-rail > i { right: -5px; }
-  .date-rail time { min-height: 25px; padding: 4px 5px; font-size: 9px; }
-  .date-rail::after { right: 0; }
+  .timeline-group { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-bottom: 22px; }
+  .date-rail { display: flex; min-height: 28px; align-items: center; justify-content: flex-start; gap: 7px; padding: 0; }
+  .date-rail::after { display: block; top: 50%; right: 0; bottom: auto; left: 0; width: auto; height: 1px; transform: translateY(-50%); }
+  .timeline-group:last-of-type .date-rail::after { display: block; }
+  .date-rail > i { position: relative; top: auto; right: auto; flex: 0 0 auto; order: 3; }
+  .date-rail time { min-height: 25px; padding: 4px 7px; font-size: 9px; }
+  .date-relative { position: relative; z-index: 1; margin-top: 0; padding: 0 5px; background: var(--paper); }
+  .event-stack { width: 100%; }
   .launch-row { grid-template-columns: 96px minmax(0, 1fr); min-height: 158px; }
   .launch-copy { gap: 9px; padding: 39px 6px 12px 12px; }
   .launch-copy h3 { padding-right: 0; font-size: 12px; }
@@ -678,8 +696,8 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
   .launch-info-grid { grid-template-columns: 1fr; gap: 5px; }
   .launch-info-grid > span:nth-child(4) { display: none; }
   .launch-info-icon { width: 13px; height: 13px; }
-  .today-divider { margin-left: -7px; }
-  .schedule-list-footer { padding-left: 65px; }
+  .today-divider { margin-left: 0; }
+  .schedule-list-footer { padding-left: 0; }
   .back-to-top { right: 12px; bottom: 12px; width: 42px; height: 42px; }
 }
 
@@ -694,6 +712,7 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
 
 .app-shell:has(.agency-filters button:focus-visible) .agency-active-indicator,
 .app-shell:has(.agency-filters button:focus-visible) .timeline-results { transition-duration: 0ms; }
+.primary-nav:has(a:focus-visible) .primary-nav-indicator { transition-duration: 0ms; }
 .app-shell:has(.load-more:focus-visible) .launch-row.is-new { animation: none; }
 
 /* Launch detail */
