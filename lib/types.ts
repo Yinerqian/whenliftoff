@@ -109,6 +109,58 @@ export type LaunchResult = {
   providerCounts: Array<{ provider: string; count: number }>;
 };
 
+export type HomeMonthlyLaunchStat = {
+  month: string;
+  total: number;
+  successful: number;
+};
+
+export type HomeProviderLaunchStat = {
+  name: string;
+  abbrev: string | null;
+  count: number;
+  share: number;
+};
+
+export type HomeCountryLaunchStat = {
+  code: string;
+  name: string;
+  count: number;
+  share: number;
+  is_other?: boolean;
+};
+
+export type HomeRocketLaunchStat = {
+  name: string;
+  count: number;
+  share: number;
+  is_other?: boolean;
+};
+
+export type HomeLaunchStats = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  generated_at: string;
+  total_launches: number;
+  successful_launches: number;
+  failed_launches: number;
+  success_rate: number;
+  active_providers: number;
+  active_countries: number;
+  active_pads: number;
+  monthly: HomeMonthlyLaunchStat[];
+  providers: HomeProviderLaunchStat[];
+  countries: HomeCountryLaunchStat[];
+  rockets: HomeRocketLaunchStat[];
+};
+
+export type LaunchLibraryCountry = {
+  name?: string | null;
+  alpha_2_code?: string | null;
+  alpha_3_code?: string | null;
+};
+
 export type LaunchLibraryLaunch = {
   id: string;
   slug: string;
@@ -122,6 +174,7 @@ export type LaunchLibraryLaunch = {
   weather_concerns?: string | null;
   launch_service_provider?: {
     name?: string | null;
+    abbrev?: string | null;
     type?: { name?: string | null } | null;
   } | null;
   rocket?: {
@@ -152,8 +205,10 @@ export type LaunchLibraryLaunch = {
     }> | null;
   } | null;
   pad?: {
+    id?: number | null;
     name?: string | null;
-    location?: { name?: string | null; country_code?: string | null } | null;
+    country?: LaunchLibraryCountry | null;
+    location?: { name?: string | null; country?: LaunchLibraryCountry | null; country_code?: string | null } | null;
     latitude?: number | string | null;
     longitude?: number | string | null;
     map_url?: string | null;

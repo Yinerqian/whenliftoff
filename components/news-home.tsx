@@ -2,15 +2,47 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { NewsImage } from "@/components/news-image";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
+import { peekPendingScrollRestore } from "@/lib/detail-return-position";
 import { distributeNewsColumns, type NewsColumnCard } from "@/lib/news-layout";
 import type { NewsContentType, NewsListItem, NewsPageResult } from "@/lib/news-types";
 import type { Launch } from "@/lib/types";
 
 const TYPE_LABEL: Record<NewsContentType, string> = { article: "新闻", blog: "博客", report: "报告" };
+const NEWS_LIST_SESSION_KEY = "whenliftoff:news-list-session";
+const NEWS_LIST_SESSION_MAX_AGE = 4 * 60 * 60 * 1000;
+
+type NewsListSession = {
+  sourcePath: string;
+  feature: NewsListItem | null;
+  cards: NewsListItem[];
+  cursor: string | null;
+  lastSyncedAt: string | null;
+  savedAt: number;
+};
+
+function readNewsListSession(sourcePath: string) {
+  try {
+    const value = window.sessionStorage.getItem(NEWS_LIST_SESSION_KEY);
+    if (!value) return null;
+    const session = JSON.parse(value) as NewsListSession;
+    if (session.sourcePath !== sourcePath || Date.now() - session.savedAt > NEWS_LIST_SESSION_MAX_AGE || !Array.isArray(session.cards)) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function writeNewsListSession(session: Omit<NewsListSession, "savedAt">) {
+  try {
+    window.sessionStorage.setItem(NEWS_LIST_SESSION_KEY, JSON.stringify({ ...session, savedAt: Date.now() } satisfies NewsListSession));
+  } catch {
+    // The detail navigation remains usable when session storage is unavailable.
+  }
+}
 
 function formatNewsDate(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -112,6 +144,7 @@ function Feature({ item, navigationPoint, onNavigate, onCommit, onCancel }: { it
 
 export function NewsHome({ initial, nextLaunch, initialError = false, preview = false }: { initial: NewsPageResult; nextLaunch: Launch | null; initialError?: boolean; preview?: boolean }) {
   const router = useRouter();
+  const [feature, setFeature] = useState<NewsListItem | undefined>(initial.items[0]);
   const [cards, setCards] = useState(initial.items.slice(1));
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [lastSyncedAt, setLastSyncedAt] = useState(initial.lastSyncedAt);
@@ -122,6 +155,18 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
   const columnsRef = useRef<HTMLDivElement>(null);
   const navigationResetRef = useRef<number | null>(null);
   const navigationCommitRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const sourcePath = `${window.location.pathname}${window.location.search}`;
+    if (!peekPendingScrollRestore(sourcePath)) return;
+    const session = readNewsListSession(sourcePath);
+    if (!session) return;
+    setFeature(session.feature ?? undefined);
+    setCards(session.cards);
+    setCursor(session.cursor);
+    setLastSyncedAt(session.lastSyncedAt);
+    setError("");
+  }, []);
 
   useEffect(() => {
     const element = columnsRef.current;
@@ -165,7 +210,15 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
   }
 
   function commitNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
-    if (event.detail === 0 || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    writeNewsListSession({
+      sourcePath: `${window.location.pathname}${window.location.search}`,
+      feature: feature ?? null,
+      cards,
+      cursor,
+      lastSyncedAt,
+    });
+    if (event.detail === 0) return;
     event.preventDefault();
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
     navigationCommitRef.current = window.setTimeout(() => {
@@ -192,7 +245,6 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
     }
   }
 
-  const feature = initial.items[0];
   return (
     <main className="news-route-main">
       <div className="news-page">

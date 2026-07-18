@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
+import { DetailBackButton } from "@/components/detail-back-button";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import {
   formatTimelineOffset,
@@ -244,13 +245,16 @@ export function LaunchDetail({ launch, newsReturnPath = null }: { launch: Launch
   return (
     <main className="launch-detail-route-main">
       <div className="detail-page launch-page-content">
-        <nav className="detail-breadcrumb" aria-label="面包屑导航">
-          {newsReturnPath ? <>
-            <Link href="/news">航天新闻</Link><span aria-hidden="true">›</span>
-            {newsReturnPath !== "/news" && <><Link href={newsReturnPath}>新闻详情</Link><span aria-hidden="true">›</span></>}
-          </> : <><Link href="/launches">发射日程</Link><span aria-hidden="true">›</span></>}
-          <strong aria-current="page">发射详情 · {name}</strong>
-        </nav>
+        <div className="detail-breadcrumb-row">
+          <nav className="detail-breadcrumb" aria-label="面包屑导航">
+            {newsReturnPath ? <>
+              <Link href="/news">航天新闻</Link><span aria-hidden="true">›</span>
+              {newsReturnPath !== "/news" && <><Link href={newsReturnPath}>新闻详情</Link><span aria-hidden="true">›</span></>}
+            </> : <><Link href="/launches">发射日程</Link><span aria-hidden="true">›</span></>}
+            <strong aria-current="page">发射详情 · {name}</strong>
+          </nav>
+          <DetailBackButton fallbackHref="/launches" />
+        </div>
 
         <section className="detail-hero-card">
           <img
@@ -367,7 +371,6 @@ export function LaunchDetail({ launch, newsReturnPath = null }: { launch: Launch
                 {!infoLinks.length && !details?.flightclub_url && !details?.infographic_url && primaryInfoUrl && <a href={primaryInfoUrl} target="_blank" rel="noreferrer"><span className="resource-icon"><DetailIcon name="globe" /></span><span><strong>任务数据来源</strong><small>{provider}</small></span></a>}
                 {!primaryInfoUrl && !details?.flightclub_url && !details?.infographic_url && <p>暂无公开的任务资料。</p>}
               </div>
-              <Link className="detail-back-link" href="/launches">返回发射日程 →</Link>
             </section>
           </aside>
         </div>

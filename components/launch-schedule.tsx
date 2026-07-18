@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
@@ -16,6 +17,12 @@ type LaunchScope = "month" | "future";
 type TimelineGroup = {
   key: string;
   launches: Launch[];
+};
+type LaunchNavigationHandlers = {
+  isNavigating: boolean;
+  onNavigate: (event: PointerEvent<HTMLAnchorElement>, href: string) => void;
+  onCommit: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onCancel: (href: string) => void;
 };
 
 const initialFilters: Filters = { q: "", provider: "" };
@@ -179,15 +186,32 @@ function LaunchCardCountdown({ value, hidden = false }: { value: string | null; 
   );
 }
 
-function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch; isNew?: boolean; enterIndex?: number }) {
+function LaunchNavigationFeedback() {
+  return (
+    <span className="launch-navigation-feedback" role="status">
+      <span className="launch-navigation-feedback-pill">
+        <span className="launch-navigation-spinner" aria-hidden="true" />
+        正在打开详情
+      </span>
+    </span>
+  );
+}
+
+function LaunchCard({ launch, isNew = false, enterIndex = 0, isNavigating, onNavigate, onCommit, onCancel }: { launch: Launch; isNew?: boolean; enterIndex?: number } & LaunchNavigationHandlers) {
   const imageUrl = resolveLaunchImageUrl(launch.image_url);
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const tone = status.tone;
+  const href = `/launches/${launch.external_id}`;
   return (
     <Link
-      className={`launch-row${isNew ? " is-new" : ""}`}
-      href={`/launches/${launch.external_id}`}
+      className={`launch-row${isNew ? " is-new" : ""}${isNavigating ? " is-navigating" : ""}`}
+      href={href}
       style={isNew ? { animationDelay: `${Math.min(enterIndex, 5) * 35}ms` } : undefined}
+      aria-busy={isNavigating}
+      onPointerDown={(event) => onNavigate(event, href)}
+      onClick={(event) => onCommit(event, href)}
+      onPointerCancel={() => onCancel(href)}
+      onPointerLeave={(event) => { if (event.buttons !== 0) onCancel(href); }}
     >
       <div
         className="launch-thumb"
@@ -213,11 +237,13 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0 }: { launch: Launch;
       <div className={`launch-state state-${tone}`}>
         <span>{status.label}</span>
       </div>
+      {isNavigating && <LaunchNavigationFeedback />}
     </Link>
   );
 }
 
 export function LaunchSchedule({ initial, recentCompleted, initialError = false, initialSearch = "" }: { initial: LaunchResult; recentCompleted: Launch[]; initialError?: boolean; initialSearch?: string }) {
+  const router = useRouter();
   const [filters, setFilters] = useState<Filters>({ ...initialFilters, q: initialSearch });
   const [result, setResult] = useState(initial);
   const [loading, setLoading] = useState(false);
@@ -228,9 +254,12 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
   const [newLaunchIds, setNewLaunchIds] = useState<string[]>([]);
   const [agencyIndicator, setAgencyIndicator] = useState({ left: 0, right: 0, trackWidth: 1, ready: false });
   const [agencyIndicatorCanAnimate, setAgencyIndicatorCanAnimate] = useState(false);
+  const [navigationState, setNavigationState] = useState<{ href: string } | null>(null);
   const agencyFiltersRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const newCardsTimerRef = useRef<number | null>(null);
+  const navigationResetRef = useRef<number | null>(null);
+  const navigationCommitRef = useRef<number | null>(null);
 
   const timeline = useMemo(() => makeTimeline(result.items), [result.items]);
   const hero = useMemo(
@@ -285,7 +314,34 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
 
   useEffect(() => () => {
     if (newCardsTimerRef.current !== null) window.clearTimeout(newCardsTimerRef.current);
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
+    if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
   }, []);
+
+  function beginNavigation(event: PointerEvent<HTMLAnchorElement>, href: string) {
+    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
+    setNavigationState({ href });
+    navigationResetRef.current = window.setTimeout(() => {
+      setNavigationState((current) => current?.href === href ? null : current);
+      navigationResetRef.current = null;
+    }, 2500);
+  }
+
+  function cancelNavigation(href: string) {
+    setNavigationState((current) => current?.href === href ? null : current);
+  }
+
+  function commitNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (event.detail === 0 || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    setNavigationState((current) => current?.href === href ? current : { href });
+    if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
+    navigationCommitRef.current = window.setTimeout(() => {
+      router.push(href);
+      navigationCommitRef.current = null;
+    }, 110);
+  }
 
   const load = useCallback(async (nextFilters: Filters, cursor?: string | null, append = false, scope: LaunchScope = "month") => {
     const requestId = ++requestIdRef.current;
@@ -422,7 +478,19 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
                       )}
                       {group.launches.map((launch) => {
                         const enterIndex = newLaunchIds.indexOf(launch.external_id);
-                        return <LaunchCard launch={launch} key={launch.external_id} isNew={enterIndex >= 0} enterIndex={enterIndex} />;
+                        const href = `/launches/${launch.external_id}`;
+                        return (
+                          <LaunchCard
+                            launch={launch}
+                            key={launch.external_id}
+                            isNew={enterIndex >= 0}
+                            enterIndex={enterIndex}
+                            isNavigating={navigationState?.href === href}
+                            onNavigate={beginNavigation}
+                            onCommit={commitNavigation}
+                            onCancel={cancelNavigation}
+                          />
+                        );
                       })}
                     </div>
                   </div>;

@@ -63,6 +63,19 @@ export async function listNews(cursor?: string): Promise<NewsPageResult> {
   return paginateNewsItems((data ?? []) as unknown as NewsListItem[], cursor, 10, latest?.completed_at ?? null);
 }
 
+export async function getLatestNews(): Promise<NewsListItem | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("news_items")
+    .select(LIST_COLUMNS)
+    .order("published_at", { ascending: false })
+    .order("content_type", { ascending: true })
+    .order("external_id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as NewsListItem | null;
+}
+
 async function getNewsItemUncached(contentType: string, externalId: number) {
   if (!isNewsContentType(contentType) || !Number.isSafeInteger(externalId) || externalId < 0) return null;
   const { data, error } = await getSupabaseAdmin()

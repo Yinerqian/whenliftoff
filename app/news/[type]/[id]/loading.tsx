@@ -3,7 +3,10 @@ export default function NewsDetailLoading() {
     <main className="news-detail-route-main">
       <div className="news-detail-page news-detail-loading" role="status" aria-live="polite" aria-busy="true">
         <span className="sr-only">正在加载新闻详情</span>
-        <div className="news-skeleton-block news-breadcrumb-skeleton" aria-hidden="true" />
+        <div className="news-breadcrumb-row news-breadcrumb-row-skeleton" aria-hidden="true">
+          <div className="news-skeleton-block news-breadcrumb-skeleton" />
+          <span className="news-skeleton-block news-back-skeleton" />
+        </div>
         <header className="news-detail-title-skeleton" aria-hidden="true">
           <span className="news-skeleton-block news-detail-chip-skeleton" />
           <span className="news-skeleton-block news-detail-heading-skeleton" />

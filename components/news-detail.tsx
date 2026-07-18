@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
+import { DetailBackButton } from "@/components/detail-back-button";
 import { NewsImage } from "@/components/news-image";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import type { NewsContentBlock, NewsContentType, NewsItem } from "@/lib/news-types";
@@ -62,10 +63,14 @@ export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | 
   const hasBody = blocks.length > 0;
   const isPending = item.translation_status === "pending" || item.translation_status === "extracting" || item.translation_status === "translating" || item.translation_status === "failed";
   const authors = (item.authors ?? []).map((author) => author.name).filter(Boolean).join("、");
+
   return (
     <main className="news-detail-route-main">
       <div className="news-detail-page">
-        <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/news">航天新闻</Link><span aria-hidden="true">›</span><span aria-current="page">{item.title_cn || item.title}</span></nav>
+        <div className="news-breadcrumb-row">
+          <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/news">航天新闻</Link><span aria-hidden="true">›</span><span aria-current="page">{item.title_cn || item.title}</span></nav>
+          <DetailBackButton fallbackHref="/news" />
+        </div>
         <header className="news-detail-header">
           <span className="news-detail-type">{TYPE_LABEL[item.content_type]}</span>
           <h1>{item.title_cn || item.title}</h1>

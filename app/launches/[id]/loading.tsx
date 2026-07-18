@@ -12,7 +12,10 @@ export default function LaunchDetailLoading() {
     <main className="launch-detail-route-main">
       <div className="detail-page launch-page-content launch-detail-loading" role="status" aria-live="polite" aria-busy="true">
         <span className="sr-only">正在加载发射任务详情</span>
-        <div className="launch-skeleton-block launch-detail-breadcrumb-skeleton" aria-hidden="true" />
+        <div className="detail-breadcrumb-row launch-detail-breadcrumb-row-skeleton" aria-hidden="true">
+          <div className="launch-skeleton-block launch-detail-breadcrumb-skeleton" />
+          <span className="launch-skeleton-block launch-detail-back-skeleton" />
+        </div>
 
         <section className="detail-hero-card launch-detail-hero-skeleton" aria-hidden="true">
           <div className="launch-skeleton-block launch-detail-hero-media-skeleton" />

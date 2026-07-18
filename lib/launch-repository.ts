@@ -1,10 +1,11 @@
 import { cache } from "react";
 import { fetchLaunchById, toLaunchRecord } from "@/lib/launch-library";
 import { toLaunchDetails } from "@/lib/launch-details";
+import { HOME_STATISTICS_ID } from "@/lib/launch-statistics";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { beijingMonthRange } from "@/lib/time";
-import type { Launch, LaunchLibraryLaunch, LaunchQuery, LaunchResult } from "@/lib/types";
+import type { HomeLaunchStats, Launch, LaunchLibraryLaunch, LaunchQuery, LaunchResult } from "@/lib/types";
 
 const DEFAULT_LIMIT = 9;
 const MAX_LIMIT = 24;
@@ -203,4 +204,14 @@ export async function getNextUpcomingLaunch(): Promise<Launch | null> {
     .maybeSingle();
   if (error) throw error;
   return data as Launch | null;
+}
+
+export async function getHomeLaunchStatistics(): Promise<HomeLaunchStats | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("launch_statistics")
+    .select("*")
+    .eq("id", HOME_STATISTICS_ID)
+    .maybeSingle();
+  if (error) throw error;
+  return data as HomeLaunchStats | null;
 }
