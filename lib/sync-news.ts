@@ -1,4 +1,3 @@
-import { extractArticle } from "@/lib/news-extraction";
 import { contentBlocksHash, chunkNewsBlocks, translateNewsBlocks, translateNewsMetadataBatch } from "@/lib/news-translation";
 import { newsItemKey, type NewsItem } from "@/lib/news-types";
 import { fetchLatestNews, type NormalizedNewsItem } from "@/lib/spaceflight-news";
@@ -33,6 +32,10 @@ async function processBody(item: NewsItem, deadline: number) {
       translation_status: "extracting", processing_error: null, last_attempted_at: new Date().toISOString(),
     }).eq("content_type", item.content_type).eq("external_id", item.external_id);
     try {
+      // Keep the HTML parser out of the route's startup bundle. If an article parser
+      // dependency ever fails to load, metadata synchronization can still complete
+      // and this item gracefully falls back to its translated summary.
+      const { extractArticle } = await import("@/lib/news-extraction");
       sourceBlocks = await extractArticle(item.original_url);
       translatedBlocks = [];
       translatedCount = 0;
