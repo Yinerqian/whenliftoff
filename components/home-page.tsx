@@ -204,7 +204,6 @@ export function HomePageView({ launch, stats, news }: { launch: Launch | null; s
       <LaunchHeroCard launch={launch} titleId="home-launch-title" detailHref={launchHref} />
 
       <section className="home-news home-news-after-launch" aria-labelledby="home-news-title">
-        <div className="home-section-heading"><div><h2 id="home-news-title">最新航天动态</h2><p>聚合全球航天新闻、博客与行业报告</p></div><Link href="/news">进入新闻中心 <span aria-hidden="true">→</span></Link></div>
         <HomeLatestNews news={news} />
       </section>
 

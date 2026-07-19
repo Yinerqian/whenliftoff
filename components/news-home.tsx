@@ -141,8 +141,9 @@ function Feature({ item, navigationPoint, onCommit }: { item: NewsListItem } & O
           阅读全文 <span aria-hidden="true">↗</span>
         </Link>
       </div>
-      <Link className="home-news-image" href={href} aria-label={title} onClick={(event) => onCommit(event, href)}>
-        <NewsImage src={item.image_url} alt="" fetchPriority="high" />
+      <Link className="home-news-image news-lead-feature-image" href={href} aria-label={title} onClick={(event) => onCommit(event, href)}>
+        <NewsImage className="home-news-image-backdrop" src={item.image_url} alt="" aria-hidden="true" fetchPriority="high" />
+        <NewsImage className="home-news-image-content" src={item.image_url} alt="" fetchPriority="high" />
       </Link>
       {navigationPoint && <NavigationFeedback point={navigationPoint} />}
     </article>
