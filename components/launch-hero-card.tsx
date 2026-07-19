@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { resolveLaunchImageUrl } from "@/lib/image";
 import { getLaunchStatusMeta, type LaunchStatusTone } from "@/lib/launch-status";
 import { countdownParts } from "@/lib/time";
@@ -104,6 +104,7 @@ export function LaunchHeroCard({
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
   const navigationCommitRef = useRef<number | null>(null);
+  const navigationResetRef = useRef<number | null>(null);
   const fallbackImage = "/assets/whenliftoff/detail_rocket.jpg";
   const image = resolveLaunchImageUrl(launch?.image_url) || fallbackImage;
   const name = launch ? launch.name_cn || launch.name : "下一次发射任务待公布";
@@ -116,26 +117,23 @@ export function LaunchHeroCard({
 
   useEffect(() => () => {
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
   }, []);
 
-  function beginDetailNavigation(event: PointerEvent<HTMLAnchorElement>) {
-    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    setIsNavigating(true);
-  }
-
-  function cancelDetailNavigation(event: PointerEvent<HTMLAnchorElement>) {
-    if (event.buttons !== 0) setIsNavigating(false);
-  }
-
   function commitDetailNavigation(event: MouseEvent<HTMLAnchorElement>) {
-    if (!detailHref || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!detailHref || event.detail === 0 || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     event.preventDefault();
     setIsNavigating(true);
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
     navigationCommitRef.current = window.setTimeout(() => {
       router.push(detailHref);
       navigationCommitRef.current = null;
     }, 110);
+    navigationResetRef.current = window.setTimeout(() => {
+      setIsNavigating(false);
+      navigationResetRef.current = null;
+    }, 2500);
   }
 
   return (
@@ -157,9 +155,6 @@ export function LaunchHeroCard({
         <div className="home-launch-card-bar">
           <Link
             href={detailHref}
-            onPointerDown={beginDetailNavigation}
-            onPointerCancel={() => setIsNavigating(false)}
-            onPointerLeave={cancelDetailNavigation}
             onClick={commitDetailNavigation}
           >
             任务详情 <span aria-hidden="true">↗</span>

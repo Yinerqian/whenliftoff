@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { NewsImage } from "@/components/news-image";
 import type { NewsListItem } from "@/lib/news-types";
 
@@ -37,15 +37,6 @@ export function HomeLatestNews({ news }: { news: NewsListItem | null }) {
   const title = news.title_cn || news.title;
   const summary = news.summary_cn || news.summary || "点击查看这条航天动态的中文摘要与来源信息。";
   const typeLabel = news.content_type === "blog" ? "机构博客" : news.content_type === "report" ? "行业报告" : "航天新闻";
-
-  function beginNavigation(event: PointerEvent<HTMLAnchorElement>) {
-    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    setIsNavigating(true);
-  }
-
-  function cancelNavigation(event: PointerEvent<HTMLAnchorElement>) {
-    if (event.buttons !== 0) setIsNavigating(false);
-  }
 
   function commitNavigation(event: MouseEvent<HTMLAnchorElement>) {
     if (event.detail === 0 || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -84,9 +75,6 @@ export function HomeLatestNews({ news }: { news: NewsListItem | null }) {
         <Link
           className="home-news-button"
           href={href}
-          onPointerDown={beginNavigation}
-          onPointerCancel={() => setIsNavigating(false)}
-          onPointerLeave={cancelNavigation}
           onClick={commitNavigation}
         >
           阅读全文 <span aria-hidden="true">↗</span>

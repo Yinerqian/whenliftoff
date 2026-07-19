@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchLaunchesByIdsFresh, selectLatestLaunchSnapshots } from "@/lib/launch-library";
+import { fetchLaunchesByIdsFresh, fetchUpcomingLaunches, selectLatestLaunchSnapshots } from "@/lib/launch-library";
 import { hasLaunchInRefreshWindow } from "@/lib/launch-refresh";
 import {
   hotSyncBounds,
   isOlderApiSnapshot,
   parseLaunchSyncMode,
+  preserveLaunchTimeline,
   selectHotLaunchCandidates,
 } from "@/lib/sync-launches";
-import type { LaunchLibraryLaunch } from "@/lib/types";
+import type { LaunchDetails, LaunchLibraryLaunch } from "@/lib/types";
 
 function launch(id: string, status: string, updatedAt: string, net = "2026-07-17T00:00:00Z"): LaunchLibraryLaunch {
   return {
@@ -55,7 +56,7 @@ describe("launch synchronization snapshots", () => {
       expect(url.pathname).toBe("/2.3.0/launches/");
       expect(url.searchParams.get("id")).toBe("first,second");
       expect(url.searchParams.get("limit")).toBe("2");
-      expect(url.searchParams.get("mode")).toBe("normal");
+      expect(url.searchParams.get("mode")).toBe("detailed");
       return Response.json({ count: 0, next: null, results: [] });
     });
     vi.stubGlobal("fetch", request);
@@ -63,6 +64,37 @@ describe("launch synchronization snapshots", () => {
     await expect(fetchLaunchesByIdsFresh(["first", "first", "second"]))
       .resolves.toEqual([]);
     expect(request).toHaveBeenCalledOnce();
+  });
+
+  it("requests detailed upcoming snapshots so persisted launches include timelines", async () => {
+    const request = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString());
+      expect(url.pathname).toBe("/2.3.0/launches/upcoming/");
+      expect(url.searchParams.get("mode")).toBe("detailed");
+      return Response.json({ count: 0, next: null, results: [] });
+    });
+    vi.stubGlobal("fetch", request);
+
+    await expect(fetchUpcomingLaunches()).resolves.toEqual([]);
+    expect(request).toHaveBeenCalledOnce();
+  });
+
+  it("does not erase a stored timeline when an upstream snapshot omits it", () => {
+    const event = {
+      id: 10,
+      code: "Liftoff",
+      title: "火箭起飞",
+      description: null,
+      relative_time: "P0D",
+      offset_seconds: 0,
+      is_key_event: true,
+      phase: "liftoff" as const,
+    };
+    const emptyDetails = { timeline: [] } as unknown as LaunchDetails;
+    const storedDetails = { timeline: [event] } as unknown as LaunchDetails;
+
+    expect(preserveLaunchTimeline(emptyDetails, storedDetails).timeline).toEqual([event]);
+    expect(preserveLaunchTimeline(storedDetails, emptyDetails)).toBe(storedDetails);
   });
 
   it("uses the inclusive 48-hour past and 6-hour future hot window", () => {

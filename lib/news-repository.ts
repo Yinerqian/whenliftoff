@@ -9,6 +9,22 @@ const LIST_COLUMNS = [
 ].join(",");
 
 type CursorValue = { published_at: string; content_type: string; external_id: number };
+export type NewsQuery = { cursor?: string; q?: string };
+
+export function normalizeNewsSearch(input = "") {
+  return input
+    .replace(/[,%().:"\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+export function filterNewsItems(items: NewsListItem[], query?: string) {
+  const search = normalizeNewsSearch(query).toLocaleLowerCase();
+  if (!search) return items;
+  return items.filter((item) => [item.title, item.title_cn, item.summary, item.summary_cn]
+    .some((value) => value?.toLocaleLowerCase().includes(search)));
+}
 
 export function encodeNewsCursor(item: Pick<NewsListItem, "published_at" | "content_type" | "external_id">) {
   return Buffer.from(JSON.stringify({
@@ -40,12 +56,24 @@ export function paginateNewsItems(items: NewsListItem[], cursor?: string, limit 
   };
 }
 
-export async function listNews(cursor?: string): Promise<NewsPageResult> {
+export async function listNews({ cursor, q }: NewsQuery = {}): Promise<NewsPageResult> {
   const supabase = getSupabaseAdmin();
+  const search = normalizeNewsSearch(q);
+  let request = supabase
+    .from("news_items")
+    .select(LIST_COLUMNS);
+  if (search) {
+    const pattern = `*${search}*`;
+    request = request.or([
+      `title.ilike.${pattern}`,
+      `title_cn.ilike.${pattern}`,
+      `summary.ilike.${pattern}`,
+      `summary_cn.ilike.${pattern}`,
+    ].join(","));
+  }
+
   const [{ data, error }, { data: latest }] = await Promise.all([
-    supabase
-      .from("news_items")
-      .select(LIST_COLUMNS)
+    request
       .order("published_at", { ascending: false })
       .order("content_type", { ascending: true })
       .order("external_id", { ascending: false })

@@ -35,7 +35,9 @@ async function requestLaunchPage(url: URL): Promise<UpstreamLaunchPage> {
 async function fetchLaunchPage(path: "upcoming" | "previous", limit: number): Promise<LaunchLibraryLaunch[]> {
   const url = launchLibraryUrl(`launches/${path}/`);
   url.searchParams.set("limit", String(limit));
-  url.searchParams.set("mode", "normal");
+  // List endpoints omit timeline data in normal mode. These snapshots are
+  // persisted as the detail-page source, so they must use the detailed shape.
+  url.searchParams.set("mode", "detailed");
   url.searchParams.set("ordering", path === "upcoming" ? "net" : "-net");
   if (path === "upcoming") url.searchParams.set("hide_recent_previous", "true");
   const payload = await requestLaunchPage(url);
@@ -101,7 +103,7 @@ export async function fetchCurrentYearLaunchesForStatistics(now = new Date()): P
 
 export async function fetchLaunchById(id: string): Promise<LaunchLibraryLaunch | null> {
   const url = launchLibraryUrl(`launches/${encodeURIComponent(id)}/`);
-  url.searchParams.set("mode", "normal");
+  url.searchParams.set("mode", "detailed");
   const response = await fetch(url, { headers: launchLibraryHeaders(), next: { revalidate: 900 } });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Launch Library detail request failed (${response.status}).`);
@@ -114,7 +116,7 @@ export async function fetchLaunchesByIdsFresh(ids: string[]): Promise<LaunchLibr
   const url = launchLibraryUrl("launches/");
   url.searchParams.set("id", uniqueIds.join(","));
   url.searchParams.set("limit", String(uniqueIds.length));
-  url.searchParams.set("mode", "normal");
+  url.searchParams.set("mode", "detailed");
   const payload = await requestLaunchPage(url);
   return payload.results ?? [];
 }

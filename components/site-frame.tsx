@@ -4,8 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SiteHeader, type SiteSection } from "@/components/site-header";
 import { isDetailDestination, rememberDetailReturnPosition, takePendingScrollRestore } from "@/lib/detail-return-position";
-
-export const LAUNCH_SEARCH_EVENT = "whenliftoff:launch-search";
+import { LAUNCH_SEARCH_EVENT, NEWS_SEARCH_EVENT, searchHref, searchSectionForPath } from "@/lib/site-search";
 
 function sectionForPath(pathname: string): SiteSection {
   if (pathname.startsWith("/news")) return "news";
@@ -28,7 +27,7 @@ export function SiteFrame({ children }: { children: ReactNode }) {
   const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
-    if (pathname !== "/launches") {
+    if (pathname !== "/launches" && pathname !== "/news") {
       setSearchValue("");
       return;
     }
@@ -122,16 +121,20 @@ export function SiteFrame({ children }: { children: ReactNode }) {
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = searchValue.trim().slice(0, 100);
+    const searchSection = searchSectionForPath(pathname);
     if (pathname === "/launches") {
       window.dispatchEvent(new CustomEvent(LAUNCH_SEARCH_EVENT, { detail: query }));
       return;
     }
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    router.push(`/launches${params.size ? `?${params.toString()}` : ""}`);
+    if (pathname === "/news") {
+      window.dispatchEvent(new CustomEvent(NEWS_SEARCH_EVENT, { detail: query }));
+      return;
+    }
+    router.push(searchHref(searchSection, query));
   }
 
   const routeShell = shellForPath(pathname);
+  const searchSection = searchSectionForPath(pathname);
   return (
     <div className={`app-shell site-frame${routeShell ? ` ${routeShell}` : ""}`} data-theme={theme}>
       <SiteHeader
@@ -141,6 +144,8 @@ export function SiteFrame({ children }: { children: ReactNode }) {
         searchValue={searchValue}
         onSearchValueChange={setSearchValue}
         onSearchSubmit={submitSearch}
+        searchPlaceholder={searchSection === "news" ? "搜索新闻标题或摘要…" : "搜索火箭、任务、机构…"}
+        searchLabel={searchSection === "news" ? "搜索新闻标题或摘要" : "搜索火箭、任务或机构"}
       />
       {children}
     </div>

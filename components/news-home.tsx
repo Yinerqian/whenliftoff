@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { NewsImage } from "@/components/news-image";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { peekPendingScrollRestore } from "@/lib/detail-return-position";
 import { distributeNewsColumns, type NewsColumnCard } from "@/lib/news-layout";
+import { NEWS_SEARCH_EVENT } from "@/lib/site-search";
 import type { NewsContentType, NewsListItem, NewsPageResult } from "@/lib/news-types";
 import type { Launch } from "@/lib/types";
 
@@ -62,9 +63,7 @@ type NavigationPoint = { x: number; y: number };
 type NavigationFeedbackProps = {
   href: string;
   navigationPoint: NavigationPoint | null;
-  onNavigate: (event: PointerEvent<HTMLAnchorElement>, href: string) => void;
   onCommit: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
-  onCancel: (href: string) => void;
 };
 
 function NavigationFeedback({ point }: { point: NavigationPoint }) {
@@ -78,7 +77,7 @@ function NavigationFeedback({ point }: { point: NavigationPoint }) {
   );
 }
 
-function NewsCard({ card, navigationPoint, onNavigate, onCommit, onCancel }: { card: NewsColumnCard } & Omit<NavigationFeedbackProps, "href">) {
+function NewsCard({ card, navigationPoint, onCommit }: { card: NewsColumnCard } & Omit<NavigationFeedbackProps, "href">) {
   const { item, variant } = card;
   const hasSourceImage = Boolean(item.image_url?.trim());
   const showImage = hasSourceImage || (variant !== "highlight" && variant !== "compact");
@@ -94,10 +93,7 @@ function NewsCard({ card, navigationPoint, onNavigate, onCommit, onCancel }: { c
       <Link
         href={href}
         aria-label={item.title_cn || item.title}
-        onPointerDown={(event) => onNavigate(event, href)}
         onClick={(event) => onCommit(event, href)}
-        onPointerCancel={() => onCancel(href)}
-        onPointerLeave={(event) => { if (event.buttons !== 0) onCancel(href); }}
       >
         {showImage && <div className="news-card-image"><NewsImage src={item.image_url} alt="" loading="lazy" /></div>}
         <div className="news-card-copy">
@@ -112,7 +108,7 @@ function NewsCard({ card, navigationPoint, onNavigate, onCommit, onCancel }: { c
   );
 }
 
-function Feature({ item, navigationPoint, onNavigate, onCommit, onCancel }: { item: NewsListItem } & Omit<NavigationFeedbackProps, "href">) {
+function Feature({ item, navigationPoint, onCommit }: { item: NewsListItem } & Omit<NavigationFeedbackProps, "href">) {
   const href = `/news/${item.content_type}/${item.external_id}`;
   const isNavigating = navigationPoint !== null;
   return (
@@ -125,10 +121,7 @@ function Feature({ item, navigationPoint, onNavigate, onCommit, onCancel }: { it
           className="upcoming-detail-link"
           href={href}
           aria-label={`新闻详情：${item.title_cn || item.title}`}
-          onPointerDown={(event) => onNavigate(event, href)}
           onClick={(event) => onCommit(event, href)}
-          onPointerCancel={() => onCancel(href)}
-          onPointerLeave={(event) => { if (event.buttons !== 0) onCancel(href); }}
         >
           新闻详情 ↗
         </Link>
@@ -142,17 +135,19 @@ function Feature({ item, navigationPoint, onNavigate, onCommit, onCancel }: { it
   );
 }
 
-export function NewsHome({ initial, nextLaunch, initialError = false, preview = false }: { initial: NewsPageResult; nextLaunch: Launch | null; initialError?: boolean; preview?: boolean }) {
+export function NewsHome({ initial, nextLaunch, initialError = false, preview = false, initialSearch = "" }: { initial: NewsPageResult; nextLaunch: Launch | null; initialError?: boolean; preview?: boolean; initialSearch?: string }) {
   const router = useRouter();
   const [feature, setFeature] = useState<NewsListItem | undefined>(initial.items[0]);
   const [cards, setCards] = useState(initial.items.slice(1));
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [lastSyncedAt, setLastSyncedAt] = useState(initial.lastSyncedAt);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError ? "新闻数据暂时不可用，请稍后重试。" : "");
   const [columnCount, setColumnCount] = useState(3);
   const [navigationState, setNavigationState] = useState<({ href: string } & NavigationPoint) | null>(null);
   const columnsRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
   const navigationResetRef = useRef<number | null>(null);
   const navigationCommitRef = useRef<number | null>(null);
 
@@ -186,28 +181,43 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
   }, []);
 
+  const searchNews = useCallback(async (value: string) => {
+    const query = value.trim().slice(0, 100);
+    const requestId = ++requestIdRef.current;
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (preview) params.set("preview", "1");
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/news${params.size ? `?${params.toString()}` : ""}`);
+      if (!response.ok) throw new Error("新闻搜索失败");
+      const page = await response.json() as NewsPageResult;
+      if (requestId !== requestIdRef.current) return;
+      setFeature(page.items[0]);
+      setCards(page.items.slice(1));
+      setCursor(page.nextCursor);
+      setLastSyncedAt(page.lastSyncedAt);
+      setSearchQuery(query);
+      setNavigationState(null);
+      window.history.replaceState(null, "", `/news${params.size ? `?${params.toString()}` : ""}`);
+    } catch {
+      if (requestId === requestIdRef.current) setError(query ? "新闻搜索暂时不可用，请稍后重试。" : "新闻数据暂时不可用，请稍后重试。");
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
+  }, [preview]);
+
+  useEffect(() => {
+    function handleHeaderSearch(event: Event) {
+      const query = event instanceof CustomEvent && typeof event.detail === "string" ? event.detail : "";
+      void searchNews(query);
+    }
+    window.addEventListener(NEWS_SEARCH_EVENT, handleHeaderSearch);
+    return () => window.removeEventListener(NEWS_SEARCH_EVENT, handleHeaderSearch);
+  }, [searchNews]);
+
   const columns = useMemo(() => distributeNewsColumns(cards, columnCount), [cards, columnCount]);
-
-  function beginNavigation(event: PointerEvent<HTMLAnchorElement>, href: string) {
-    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    document.documentElement.dataset.newsPointerNavigation = "true";
-    const surface = event.currentTarget.closest<HTMLElement>(".news-card, .news-feature") ?? event.currentTarget;
-    const bounds = surface.getBoundingClientRect();
-    const x = bounds.width / 2;
-    const y = bounds.height / 2;
-    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
-    setNavigationState({ href, x, y });
-    navigationResetRef.current = window.setTimeout(() => {
-      setNavigationState((current) => current?.href === href ? null : current);
-      delete document.documentElement.dataset.newsPointerNavigation;
-      navigationResetRef.current = null;
-    }, 2500);
-  }
-
-  function cancelNavigation(href: string) {
-    setNavigationState((current) => current?.href === href ? null : current);
-    delete document.documentElement.dataset.newsPointerNavigation;
-  }
 
   function commitNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
     if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -220,44 +230,62 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
     });
     if (event.detail === 0) return;
     event.preventDefault();
+    document.documentElement.dataset.newsPointerNavigation = "true";
+    const surface = event.currentTarget.closest<HTMLElement>(".news-card, .news-feature") ?? event.currentTarget;
+    const bounds = surface.getBoundingClientRect();
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
+    setNavigationState({ href, x: bounds.width / 2, y: bounds.height / 2 });
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
     navigationCommitRef.current = window.setTimeout(() => {
       router.push(href);
       navigationCommitRef.current = null;
     }, 110);
+    navigationResetRef.current = window.setTimeout(() => {
+      setNavigationState((current) => current?.href === href ? null : current);
+      delete document.documentElement.dataset.newsPointerNavigation;
+      navigationResetRef.current = null;
+    }, 2500);
   }
 
   async function loadMore() {
     if (!cursor || loading) return;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/news?cursor=${encodeURIComponent(cursor)}${preview ? "&preview=1" : ""}`);
+      const params = new URLSearchParams({ cursor });
+      if (searchQuery) params.set("q", searchQuery);
+      if (preview) params.set("preview", "1");
+      const response = await fetch(`/api/news?${params.toString()}`);
       if (!response.ok) throw new Error("新闻加载失败");
       const page = await response.json() as NewsPageResult;
+      if (requestId !== requestIdRef.current) return;
       setCards((current) => [...current, ...page.items].slice(0, 29));
       setCursor(page.nextCursor);
       setLastSyncedAt((current) => page.lastSyncedAt || current);
     } catch {
-      setError("更多新闻加载失败，请稍后重试。 ");
+      if (requestId === requestIdRef.current) setError("更多新闻加载失败，请稍后重试。 ");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
+  const emptyTitle = error ? "新闻暂时不可用" : searchQuery ? "未找到相关新闻" : "正在等待第一批航天新闻";
+  const emptyMessage = error || (searchQuery ? `没有找到与“${searchQuery}”相关的新闻，请尝试其他关键词。` : "同步完成后，最新的新闻、博客和报告会出现在这里。");
+
   return (
     <main className="news-route-main">
-      <div className="news-page">
+      <div className="news-page" aria-busy={loading}>
         <header className="news-page-heading"><h1>航天新闻</h1><p>探索太空，发现未来</p></header>
         {feature ? <>
           <section className="news-lead-grid">
-            <Feature item={feature} navigationPoint={navigationState?.href === `/news/${feature.content_type}/${feature.external_id}` ? navigationState : null} onNavigate={beginNavigation} onCommit={commitNavigation} onCancel={cancelNavigation} />
+            <Feature item={feature} navigationPoint={navigationState?.href === `/news/${feature.content_type}/${feature.external_id}` ? navigationState : null} onCommit={commitNavigation} />
             <UpcomingLaunchCard launch={nextLaunch} sourceHref="/news" />
           </section>
           <section className="news-editorial" ref={columnsRef} aria-label="最新航天新闻" aria-busy={loading}>
             {columns.map((column, index) => <div className="news-editorial-column" key={`${columnCount}-${index}`}>{column.map((card) => {
               const href = `/news/${card.item.content_type}/${card.item.external_id}`;
-              return <NewsCard card={card} navigationPoint={navigationState?.href === href ? navigationState : null} onNavigate={beginNavigation} onCommit={commitNavigation} onCancel={cancelNavigation} key={`${card.item.content_type}:${card.item.external_id}`} />;
+              return <NewsCard card={card} navigationPoint={navigationState?.href === href ? navigationState : null} onCommit={commitNavigation} key={`${card.item.content_type}:${card.item.external_id}`} />;
             })}</div>)}
           </section>
           <div className="news-list-footer">
@@ -273,7 +301,7 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
               {lastSyncedAt && <> · 最近同步于 {formatSyncTime(lastSyncedAt)}</>}
             </p>
           </div>
-        </> : <section className="news-empty-state"><h2>{initialError ? "新闻暂时不可用" : "正在等待第一批航天新闻"}</h2><p>{error || "同步完成后，最新的新闻、博客和报告会出现在这里。"}</p></section>}
+        </> : <section className="news-empty-state"><h2>{emptyTitle}</h2><p>{emptyMessage}</p></section>}
       </div>
       <BackToTop />
     </main>

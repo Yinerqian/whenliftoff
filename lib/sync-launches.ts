@@ -9,7 +9,7 @@ import {
 import { aggregateHomeLaunchStatistics } from "@/lib/launch-statistics";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { translateLaunch, translationHash } from "@/lib/translation";
-import type { LaunchLibraryLaunch } from "@/lib/types";
+import type { LaunchDetails, LaunchLibraryLaunch } from "@/lib/types";
 
 export type LaunchSyncMode = "full" | "hot";
 
@@ -21,6 +21,7 @@ const HOT_SYNC_PAST_HOURS = 48;
 const HOT_SYNC_FUTURE_HOURS = 6;
 const MAX_HOT_CANDIDATES = 100;
 const STALE_RUN_MINUTES = 5;
+const UPSERT_BATCH_SIZE = 50;
 
 type SupabaseAdmin = ReturnType<typeof getSupabaseAdmin>;
 
@@ -36,6 +37,11 @@ type ModeResult = PersistResult & {
   apiRequests: number;
   metadata: Record<string, unknown>;
 };
+
+export function preserveLaunchTimeline(incoming: LaunchDetails, existing: LaunchDetails | null | undefined) {
+  if (incoming.timeline.length || !existing?.timeline?.length) return incoming;
+  return { ...incoming, timeline: existing.timeline };
+}
 
 export type LaunchSyncResult = PersistResult & {
   mode: LaunchSyncMode;
@@ -110,17 +116,24 @@ async function persistLaunchSnapshots(supabase: SupabaseAdmin, sourceLaunches: L
   let translationsProcessed = 0;
   let statusChanges = 0;
   let staleSnapshotsSkipped = 0;
+  const records = sourceLaunches.map(toLaunchRecord);
 
-  for (const source of sourceLaunches) {
-    const record = toLaunchRecord(source);
+  if (!records.length) {
+    return { recordsProcessed: 0, translationsProcessed, statusChanges, staleSnapshotsSkipped };
+  }
+
+  const { data: existingRows, error: lookupError } = await supabase
+    .from("launches")
+    .select("external_id,translation_hash,name_cn,mission_description_cn,location_cn,api_updated_at,status,details")
+    .in("external_id", records.map((record) => record.external_id));
+  if (lookupError) throw lookupError;
+  const existingById = new Map((existingRows ?? []).map((row) => [row.external_id, row]));
+  const rowsToUpsert = [];
+
+  for (const record of records) {
     const sourceText = { name: record.name, description: record.mission_description, location: record.location };
     const hash = translationHash(sourceText);
-    const { data: existing, error: lookupError } = await supabase
-      .from("launches")
-      .select("translation_hash,name_cn,mission_description_cn,location_cn,api_updated_at,status")
-      .eq("external_id", record.external_id)
-      .maybeSingle();
-    if (lookupError) throw lookupError;
+    const existing = existingById.get(record.external_id);
     if (existing && isOlderApiSnapshot(record.api_updated_at, existing.api_updated_at)) {
       staleSnapshotsSkipped += 1;
       continue;
@@ -136,17 +149,28 @@ async function persistLaunchSnapshots(supabase: SupabaseAdmin, sourceLaunches: L
     if (existing?.translation_hash !== hash) translationsProcessed += 1;
     if (existing && existing.status !== record.status) statusChanges += 1;
 
-    const { error } = await supabase.from("launches").upsert({
+    if (record.details) {
+      record.details = preserveLaunchTimeline(record.details, existing?.details as LaunchDetails | null | undefined);
+    }
+
+    rowsToUpsert.push({
       ...record,
       ...translations,
       translation_hash: hash,
       synced_at: new Date().toISOString(),
-    }, { onConflict: "external_id" });
+    });
+  }
+
+  for (let offset = 0; offset < rowsToUpsert.length; offset += UPSERT_BATCH_SIZE) {
+    const { error } = await supabase.from("launches").upsert(
+      rowsToUpsert.slice(offset, offset + UPSERT_BATCH_SIZE),
+      { onConflict: "external_id" },
+    );
     if (error) throw error;
   }
 
   return {
-    recordsProcessed: sourceLaunches.length,
+    recordsProcessed: records.length,
     translationsProcessed,
     statusChanges,
     staleSnapshotsSkipped,

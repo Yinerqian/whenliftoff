@@ -12,11 +12,13 @@ export const metadata: Metadata = {
   openGraph: { title: "航天新闻 · whenliftoff", description: "探索太空，发现未来。" },
 };
 
-export default async function NewsPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
-  const preview = process.env.NODE_ENV === "development" && (await searchParams).preview === "1";
-  if (preview) return <NewsHome initial={previewNewsPage()} nextLaunch={previewLaunch} preview />;
-  const [newsResult, launchResult] = await Promise.allSettled([listNews(), getNextUpcomingLaunch()]);
+export default async function NewsPage({ searchParams }: { searchParams: Promise<{ preview?: string; q?: string }> }) {
+  const params = await searchParams;
+  const initialSearch = params.q?.trim().slice(0, 100) ?? "";
+  const preview = process.env.NODE_ENV === "development" && params.preview === "1";
+  if (preview) return <NewsHome initial={previewNewsPage(undefined, initialSearch)} nextLaunch={previewLaunch} preview initialSearch={initialSearch} />;
+  const [newsResult, launchResult] = await Promise.allSettled([listNews({ q: initialSearch || undefined }), getNextUpcomingLaunch()]);
   const initial = newsResult.status === "fulfilled" ? newsResult.value : { items: [], nextCursor: null, lastSyncedAt: null };
   const nextLaunch = launchResult.status === "fulfilled" ? launchResult.value : null;
-  return <NewsHome initial={initial} nextLaunch={nextLaunch} initialError={newsResult.status === "rejected"} />;
+  return <NewsHome initial={initial} nextLaunch={nextLaunch} initialError={newsResult.status === "rejected"} initialSearch={initialSearch} />;
 }

@@ -1,4 +1,4 @@
-import { paginateNewsItems } from "@/lib/news-repository";
+import { filterNewsItems, paginateNewsItems } from "@/lib/news-repository";
 import type { NewsContentBlock, NewsItem, NewsListItem } from "@/lib/news-types";
 import type { Launch } from "@/lib/types";
 
@@ -49,8 +49,8 @@ export function previewNewsItem(type: string, id: number): NewsItem | null {
   return { ...listItem, source_blocks: [], body_cn_blocks: previewBlocks, metadata_hash: "preview", content_hash: "preview", processing_error: null, last_attempted_at: null };
 }
 
-export function previewNewsPage(cursor?: string) {
-  return paginateNewsItems(previewNewsItems, cursor, 10, previewNewsItems[0]?.synced_at ?? null);
+export function previewNewsPage(cursor?: string, query?: string) {
+  return paginateNewsItems(filterNewsItems(previewNewsItems, query), cursor, 10, previewNewsItems[0]?.synced_at ?? null);
 }
 
 export const previewLaunch: Launch = {

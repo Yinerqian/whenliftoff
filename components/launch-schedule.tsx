@@ -3,14 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
-import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
-import { nextLaunchPage, type LaunchPageScope } from "@/lib/launch-pagination";
+import { limitPastLaunches, nextLaunchPage, type LaunchPageScope } from "@/lib/launch-pagination";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
+import { LAUNCH_SEARCH_EVENT } from "@/lib/site-search";
 import { formatBeijingClock } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
@@ -26,9 +26,7 @@ type LiveLaunchSnapshot = {
 };
 type LaunchNavigationHandlers = {
   isNavigating: boolean;
-  onNavigate: (event: PointerEvent<HTMLAnchorElement>, href: string) => void;
   onCommit: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
-  onCancel: (href: string) => void;
 };
 
 const initialFilters: Filters = { q: "", provider: "" };
@@ -203,7 +201,7 @@ function LaunchNavigationFeedback() {
   );
 }
 
-function LaunchCard({ launch, isNew = false, enterIndex = 0, isNavigating, onNavigate, onCommit, onCancel }: { launch: Launch; isNew?: boolean; enterIndex?: number } & LaunchNavigationHandlers) {
+function LaunchCard({ launch, isNew = false, enterIndex = 0, isNavigating, onCommit }: { launch: Launch; isNew?: boolean; enterIndex?: number } & LaunchNavigationHandlers) {
   const imageUrl = resolveLaunchImageUrl(launch.image_url);
   const status = getLaunchStatusMeta(launch.status, launch.status_cn);
   const tone = status.tone;
@@ -214,10 +212,7 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0, isNavigating, onNav
       href={href}
       style={isNew ? { animationDelay: `${Math.min(enterIndex, 5) * 35}ms` } : undefined}
       aria-busy={isNavigating}
-      onPointerDown={(event) => onNavigate(event, href)}
       onClick={(event) => onCommit(event, href)}
-      onPointerCancel={() => onCancel(href)}
-      onPointerLeave={(event) => { if (event.buttons !== 0) onCancel(href); }}
     >
       <div
         className="launch-thumb"
@@ -268,13 +263,15 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
   const navigationResetRef = useRef<number | null>(null);
   const navigationCommitRef = useRef<number | null>(null);
 
-  const timeline = useMemo(() => makeTimeline(result.items), [result.items]);
+  const visibleLaunches = useMemo(() => limitPastLaunches(result.items), [result.items]);
+  const timeline = useMemo(() => makeTimeline(visibleLaunches), [visibleLaunches]);
   const hero = useMemo(
-    () => result.items.find((launch) => launch.launch_time_utc && new Date(launch.launch_time_utc).getTime() > Date.now())
-      ?? result.items.find((launch) => launch.launch_time_utc)
+    () => visibleLaunches.find((launch) => launch.launch_time_utc && new Date(launch.launch_time_utc).getTime() > Date.now())
+      ?? visibleLaunches.find((launch) => launch.launch_time_utc)
       ?? null,
-    [result.items],
+    [visibleLaunches],
   );
+  const visibleRecentLaunches = useMemo(() => recentLaunches.slice(0, 5), [recentLaunches]);
   const providerCounts = useMemo(() => {
     return new Map(result.providerCounts.map(({ provider, count }) => [provider, count]));
   }, [result.providerCounts]);
@@ -329,29 +326,20 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
   }, []);
 
-  function beginNavigation(event: PointerEvent<HTMLAnchorElement>, href: string) {
-    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
-    setNavigationState({ href });
-    navigationResetRef.current = window.setTimeout(() => {
-      setNavigationState((current) => current?.href === href ? null : current);
-      navigationResetRef.current = null;
-    }, 2500);
-  }
-
-  function cancelNavigation(href: string) {
-    setNavigationState((current) => current?.href === href ? null : current);
-  }
-
   function commitNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
     if (event.detail === 0 || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     event.preventDefault();
-    setNavigationState((current) => current?.href === href ? current : { href });
+    setNavigationState({ href });
     if (navigationCommitRef.current !== null) window.clearTimeout(navigationCommitRef.current);
+    if (navigationResetRef.current !== null) window.clearTimeout(navigationResetRef.current);
     navigationCommitRef.current = window.setTimeout(() => {
       router.push(href);
       navigationCommitRef.current = null;
     }, 110);
+    navigationResetRef.current = window.setTimeout(() => {
+      setNavigationState((current) => current?.href === href ? null : current);
+      navigationResetRef.current = null;
+    }, 2500);
   }
 
   const load = useCallback(async (nextFilters: Filters, cursor?: string | null, append = false, scope: LaunchPageScope = "month") => {
@@ -389,7 +377,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
   }, []);
 
   const refreshVisibleLaunches = useCallback(async () => {
-    const ids = result.items.map((launch) => launch.external_id);
+    const ids = visibleLaunches.map((launch) => launch.external_id);
     const params = new URLSearchParams({ ids: ids.join(",") });
     const response = await fetch(`/api/launches/live?${params.toString()}`, { cache: "no-store" });
     if (!response.ok) return;
@@ -401,7 +389,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
       lastSyncedAt: snapshot.lastSyncedAt ?? current.lastSyncedAt,
     }));
     setRecentLaunches(snapshot.recentCompleted);
-  }, [result.items]);
+  }, [visibleLaunches]);
 
   useEffect(() => {
     function handleHeaderSearch(event: Event) {
@@ -431,7 +419,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
 
   return (
     <main className="launch-route-main">
-      <LaunchAutoRefresh launchTimes={result.items.map((launch) => launch.launch_time_utc)} onRefresh={refreshVisibleLaunches} />
+      <LaunchAutoRefresh launchTimes={visibleLaunches.map((launch) => launch.launch_time_utc)} onRefresh={refreshVisibleLaunches} />
       <section className="dashboard launch-page-content" id="overview">
         <h1 className="sr-only">全球火箭发射日程</h1>
         <section className="filters-row" id="agencies" aria-label="发射机构分类">
@@ -482,7 +470,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
             >
               {error ? (
                 <div className="state-card error-state">发射日程暂时不可用，请稍后重试。</div>
-              ) : result.items.length === 0 && !loading ? (
+              ) : visibleLaunches.length === 0 && !loading ? (
                 <div className="state-card">暂无符合条件的发射任务。</div>
               ) : (
                 timeline.map((group) => {
@@ -509,9 +497,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
                             isNew={enterIndex >= 0}
                             enterIndex={enterIndex}
                             isNavigating={navigationState?.href === href}
-                            onNavigate={beginNavigation}
                             onCommit={commitNavigation}
-                            onCancel={cancelNavigation}
                           />
                         );
                       })}
@@ -537,8 +523,8 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
           <div className={`side-column${loadingMode === "replace" ? " is-updating" : ""}`}>
             <UpcomingLaunchCard launch={hero} key={hero?.external_id ?? "upcoming-empty"} />
             <section className="next-list">
-              <div className="side-heading"><strong>最近已发射 · CST</strong><span>{recentLaunches.length} 场</span></div>
-              {recentLaunches.map((launch) => (
+              <div className="side-heading"><strong>最近已发射 · CST</strong><span>{visibleRecentLaunches.length} 场</span></div>
+              {visibleRecentLaunches.map((launch) => (
                 <Link href={`/launches/${launch.external_id}`} key={launch.external_id}>
                   <strong>{formatBeijingClock(launch.launch_time_utc)}</strong>
                   <span>{formatRecentLaunchDate(launch.launch_time_utc)}</span>
@@ -546,7 +532,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
                   <em>—</em>
                 </Link>
               ))}
-              {!recentLaunches.length && <p className="next-list-empty">暂无已完成的发射记录</p>}
+              {!visibleRecentLaunches.length && <p className="next-list-empty">暂无已完成的发射记录</p>}
             </section>
           </div>
         </div>
