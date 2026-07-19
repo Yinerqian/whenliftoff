@@ -673,7 +673,7 @@ html[data-news-pointer-navigation="true"] .news-detail-route-main { view-transit
   .topbar { min-height: 94px; gap: 3px 8px; padding-inline: 10px; }
   .brand { font-size: 17px; }
   .brand-mark { width: 30px; height: 30px; }
-  .primary-nav { gap: 2px; }
+  .primary-nav { justify-content: center; gap: 2px; }
   .primary-nav a { padding: 8px 10px; font-size: 11px; }
   .dashboard { width: calc(100% - 20px); }
   .filters-row { padding-left: 3px; }
