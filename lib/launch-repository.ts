@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { HOME_STATISTICS_ID } from "@/lib/launch-statistics";
+import { localizeLaunchName, localizeRocketName } from "@/lib/localization";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { beijingMonthRange } from "@/lib/time";
@@ -7,6 +8,14 @@ import type { HomeLaunchStats, Launch, LaunchQuery, LaunchResult } from "@/lib/t
 
 const DEFAULT_LIMIT = 9;
 const MAX_LIMIT = 24;
+
+function localizeLaunchPresentation(launch: Launch): Launch {
+  return {
+    ...launch,
+    name_cn: localizeLaunchName(launch.name_cn, launch.name),
+    rocket_name: localizeRocketName(launch.rocket_name),
+  };
+}
 
 function decodeOffset(cursor?: string) {
   if (!cursor) return 0;
@@ -66,7 +75,7 @@ export async function searchLaunches(query: LaunchQuery): Promise<LaunchResult> 
     .range(offset, offset + limit - 1);
   if (error) throw error;
 
-  const items = (data ?? []) as Launch[];
+  const items = ((data ?? []) as Launch[]).map(localizeLaunchPresentation);
   const total = count ?? 0;
   const { data: providerRows, error: providerError } = await supabase
     .from("launches")
@@ -125,7 +134,7 @@ async function getLaunchByIdUncached(id: string): Promise<Launch | null> {
     stored = bySlug as Launch | null;
   }
 
-  return stored;
+  return stored ? localizeLaunchPresentation(stored) : null;
 }
 
 export const getLaunchById = cache(getLaunchByIdUncached);
@@ -151,7 +160,10 @@ export async function getLaunchesByIds(ids: string[]): Promise<Launch[]> {
     .select("*")
     .in("external_id", uniqueIds);
   if (error) throw error;
-  const byId = new Map(((data ?? []) as Launch[]).map((launch) => [launch.external_id, launch]));
+  const byId = new Map(((data ?? []) as Launch[]).map((launch) => {
+    const localized = localizeLaunchPresentation(launch);
+    return [localized.external_id, localized];
+  }));
   return uniqueIds.flatMap((id) => {
     const launch = byId.get(id);
     return launch ? [launch] : [];
@@ -183,7 +195,8 @@ export async function getRecentCompletedLaunches(limit = 5): Promise<Launch[]> {
       const tone = getLaunchStatusMeta(launch.status, launch.status_cn).tone;
       return tone === "success" || tone === "failed";
     })
-    .slice(0, safeLimit);
+    .slice(0, safeLimit)
+    .map(localizeLaunchPresentation);
 }
 
 export async function getNextUpcomingLaunch(): Promise<Launch | null> {
@@ -196,7 +209,7 @@ export async function getNextUpcomingLaunch(): Promise<Launch | null> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data as Launch | null;
+  return data ? localizeLaunchPresentation(data as Launch) : null;
 }
 
 export async function getHomeLaunchStatistics(): Promise<HomeLaunchStats | null> {

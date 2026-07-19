@@ -51,6 +51,18 @@ function formatNewsDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatNewsFeatureDate(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
 function formatSyncTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -111,25 +123,27 @@ function NewsCard({ card, navigationPoint, onCommit }: { card: NewsColumnCard } 
 function Feature({ item, navigationPoint, onCommit }: { item: NewsListItem } & Omit<NavigationFeedbackProps, "href">) {
   const href = `/news/${item.content_type}/${item.external_id}`;
   const isNavigating = navigationPoint !== null;
+  const title = item.title_cn || item.title;
+  const summary = item.summary_cn || item.summary || "点击查看这条航天动态的中文摘要与来源信息。";
+  const typeLabel = item.content_type === "blog" ? "机构博客" : item.content_type === "report" ? "行业报告" : "航天新闻";
   return (
-    <article className={`news-feature${isNavigating ? " is-navigating" : ""}`} aria-busy={isNavigating}>
-      <NewsImage src={item.image_url} alt="" fetchPriority="high" />
-      <div className="news-feature-shade" />
-      <div className="news-feature-actions">
-        <span className="news-feature-pill">最新</span>
+    <article className={`news-feature home-news-feature${isNavigating ? " is-navigating" : ""}`} aria-busy={isNavigating}>
+      <div className="home-news-copy">
+        <p className="home-news-meta"><span>{typeLabel}</span><i>·</i>{item.news_site}<i>·</i>{formatNewsFeatureDate(item.published_at)}</p>
+        <h3><Link href={href} onClick={(event) => onCommit(event, href)}>{title}</Link></h3>
+        <p className="home-news-summary">{summary}</p>
+        <div className="home-news-tags"><span>{typeLabel}</span><span>{item.news_site}</span>{item.featured && <span>编辑推荐</span>}</div>
         <Link
-          className="upcoming-detail-link"
+          className="home-news-button"
           href={href}
-          aria-label={`新闻详情：${item.title_cn || item.title}`}
           onClick={(event) => onCommit(event, href)}
         >
-          新闻详情 ↗
+          阅读全文 <span aria-hidden="true">↗</span>
         </Link>
       </div>
-      <div className="news-feature-copy">
-        <h2>{item.title_cn || item.title}</h2>
-        <p>来源：{item.news_site}<i>·</i>北京时间 {formatNewsDate(item.published_at)}</p>
-      </div>
+      <Link className="home-news-image" href={href} aria-label={title} onClick={(event) => onCommit(event, href)}>
+        <NewsImage src={item.image_url} alt="" fetchPriority="high" />
+      </Link>
       {navigationPoint && <NavigationFeedback point={navigationPoint} />}
     </article>
   );

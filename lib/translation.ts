@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { localizeLaunchName } from "@/lib/localization";
 
 export type TranslationInput = { name: string; description: string | null; location: string | null };
 export type Translation = { name_cn: string | null; mission_description_cn: string | null; location_cn: string | null };
@@ -17,6 +18,13 @@ function parseTranslation(content: string): Translation {
   };
 }
 
+export function normalizeLaunchTranslation(input: TranslationInput, translation: Translation): Translation {
+  return {
+    ...translation,
+    name_cn: localizeLaunchName(translation.name_cn, input.name),
+  };
+}
+
 export async function translateLaunch(input: TranslationInput): Promise<Translation> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY must be configured for translations.");
@@ -28,7 +36,7 @@ export async function translateLaunch(input: TranslationInput): Promise<Translat
     messages: [
       {
         role: "system",
-        content: "Translate launch metadata into concise Simplified Chinese. Preserve mission names, rocket names, acronyms, model numbers, and factual certainty. Do not invent details. Return JSON only with name_cn, mission_description_cn, and location_cn; use null when the source value is null.",
+        content: "Translate launch metadata into concise Simplified Chinese. Use established Chinese names for well-known rockets and constellations, including Falcon 9 = 猎鹰9号, Falcon Heavy = 猎鹰重型, and Starlink = 星链. Preserve acronyms, proper mission identifiers, model and Block numbers, and factual certainty. Do not invent details. Return JSON only with name_cn, mission_description_cn, and location_cn; use null when the source value is null.",
       },
       { role: "user", content: JSON.stringify(input) },
     ],
@@ -45,7 +53,7 @@ export async function translateLaunch(input: TranslationInput): Promise<Translat
       const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("DeepSeek returned no translation content.");
-      return parseTranslation(content);
+      return normalizeLaunchTranslation(input, parseTranslation(content));
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("DeepSeek translation failed.");
     }

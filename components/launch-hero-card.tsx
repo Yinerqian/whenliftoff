@@ -137,7 +137,7 @@ export function LaunchHeroCard({
   }
 
   return (
-    <section className={`detail-hero-card${detailHref ? " home-launch-detail-card" : ""}`} aria-labelledby={titleId} aria-busy={isNavigating}>
+    <section className={`detail-hero-card${detailHref ? " home-launch-detail-card" : " launch-detail-hero-card"}`} aria-labelledby={titleId} aria-busy={isNavigating}>
       <img
         className="detail-hero-image"
         src={image}

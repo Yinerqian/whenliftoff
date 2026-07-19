@@ -56,17 +56,6 @@ export function HomeLatestNews({ news }: { news: NewsListItem | null }) {
 
   return (
     <article className={`home-news-feature${isNavigating ? " is-navigating" : ""}`} aria-busy={isNavigating}>
-      <Link className="home-news-image" href={href} aria-label={title}>
-        <NewsImage src={news.image_url} alt="" />
-        {isNavigating && (
-          <span className="news-navigation-feedback home-news-navigation-feedback" role="status">
-            <span className="news-navigation-feedback-pill">
-              <span className="news-navigation-spinner" aria-hidden="true" />
-              正在加载详情
-            </span>
-          </span>
-        )}
-      </Link>
       <div className="home-news-copy">
         <p className="home-news-meta"><span>{typeLabel}</span><i>·</i>{news.news_site}<i>·</i>{formatNewsDate(news.published_at)}</p>
         <h3><Link href={href}>{title}</Link></h3>
@@ -80,6 +69,17 @@ export function HomeLatestNews({ news }: { news: NewsListItem | null }) {
           阅读全文 <span aria-hidden="true">↗</span>
         </Link>
       </div>
+      <Link className="home-news-image" href={href} aria-label={title}>
+        <NewsImage src={news.image_url} alt="" />
+        {isNavigating && (
+          <span className="news-navigation-feedback home-news-navigation-feedback" role="status">
+            <span className="news-navigation-feedback-pill">
+              <span className="news-navigation-spinner" aria-hidden="true" />
+              正在加载详情
+            </span>
+          </span>
+        )}
+      </Link>
     </article>
   );
 }

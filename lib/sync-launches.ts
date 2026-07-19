@@ -8,7 +8,7 @@ import {
 } from "@/lib/launch-library";
 import { aggregateHomeLaunchStatistics } from "@/lib/launch-statistics";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { translateLaunch, translationHash } from "@/lib/translation";
+import { normalizeLaunchTranslation, translateLaunch, translationHash } from "@/lib/translation";
 import type { LaunchDetails, LaunchLibraryLaunch } from "@/lib/types";
 
 export type LaunchSyncMode = "full" | "hot";
@@ -139,13 +139,14 @@ async function persistLaunchSnapshots(supabase: SupabaseAdmin, sourceLaunches: L
       continue;
     }
 
-    const translations = existing?.translation_hash === hash
+    const storedTranslations = existing?.translation_hash === hash
       ? {
           name_cn: existing.name_cn,
           mission_description_cn: existing.mission_description_cn,
           location_cn: existing.location_cn,
         }
       : await translateLaunch(sourceText);
+    const translations = normalizeLaunchTranslation(sourceText, storedTranslations);
     if (existing?.translation_hash !== hash) translationsProcessed += 1;
     if (existing && existing.status !== record.status) statusChanges += 1;
 
