@@ -9,12 +9,12 @@ import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
 import { LAUNCH_SEARCH_EVENT } from "@/components/site-frame";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
+import { nextLaunchPage, type LaunchPageScope } from "@/lib/launch-pagination";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { formatBeijingClock } from "@/lib/time";
 import type { Launch, LaunchResult } from "@/lib/types";
 
 type Filters = { q: string; provider: string };
-type LaunchScope = "month" | "future";
 type TimelineGroup = {
   key: string;
   launches: Launch[];
@@ -33,7 +33,7 @@ type LaunchNavigationHandlers = {
 
 const initialFilters: Filters = { q: "", provider: "" };
 
-function requestParams(filters: Filters, cursor?: string | null, scope: LaunchScope = "month") {
+function requestParams(filters: Filters, cursor?: string | null, scope: LaunchPageScope = "month") {
   const params = new URLSearchParams({ limit: "18" });
   if (scope === "month") params.set("month", "current");
   else params.set("scope", "future");
@@ -255,7 +255,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
   const [recentLaunches, setRecentLaunches] = useState(recentCompleted);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
-  const [providerExpanded, setProviderExpanded] = useState(false);
+  const [paginationScope, setPaginationScope] = useState<LaunchPageScope>("month");
   const [loadingMode, setLoadingMode] = useState<"replace" | "append" | null>(null);
   const [resultRevision, setResultRevision] = useState(0);
   const [newLaunchIds, setNewLaunchIds] = useState<string[]>([]);
@@ -279,7 +279,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     return new Map(result.providerCounts.map(({ provider, count }) => [provider, count]));
   }, [result.providerCounts]);
   const providerOptions = useMemo(() => [...providerCounts.entries()].slice(0, 6), [providerCounts]);
-  const showLoadMore = Boolean(result.nextCursor) || Boolean(filters.provider && !providerExpanded);
+  const showLoadMore = nextLaunchPage(result.nextCursor, paginationScope) !== null;
 
   useLayoutEffect(() => {
     const container = agencyFiltersRef.current;
@@ -354,7 +354,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     }, 110);
   }
 
-  const load = useCallback(async (nextFilters: Filters, cursor?: string | null, append = false, scope: LaunchScope = "month") => {
+  const load = useCallback(async (nextFilters: Filters, cursor?: string | null, append = false, scope: LaunchPageScope = "month") => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setLoadingMode(append ? "append" : "replace");
@@ -407,7 +407,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
     function handleHeaderSearch(event: Event) {
       const q = event instanceof CustomEvent && typeof event.detail === "string" ? event.detail : "";
       const next = { ...filters, q };
-      setProviderExpanded(false);
+      setPaginationScope("month");
       setFilters(next);
       void load(next);
     }
@@ -417,20 +417,16 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
 
   function selectProvider(provider: string) {
     const next = { ...filters, provider };
-    setProviderExpanded(false);
+    setPaginationScope("month");
     setFilters(next);
     void load(next);
   }
 
   async function loadMore() {
-    if (result.nextCursor) {
-      await load(filters, result.nextCursor, true, providerExpanded ? "future" : "month");
-      return;
-    }
-    if (filters.provider && !providerExpanded) {
-      const loaded = await load(filters, undefined, true, "future");
-      if (loaded) setProviderExpanded(true);
-    }
+    const nextPage = nextLaunchPage(result.nextCursor, paginationScope);
+    if (!nextPage) return;
+    const loaded = await load(filters, nextPage.cursor, true, nextPage.scope);
+    if (loaded) setPaginationScope(nextPage.scope);
   }
 
   return (
