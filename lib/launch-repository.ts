@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { HOME_STATISTICS_ID } from "@/lib/launch-statistics";
+import { ALL_CURRENT_MONTH_LIMIT } from "@/lib/launch-pagination";
 import { localizeLaunchName, localizeRocketName } from "@/lib/localization";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -7,7 +8,7 @@ import { beijingMonthRange } from "@/lib/time";
 import type { HomeLaunchStats, Launch, LaunchQuery, LaunchResult } from "@/lib/types";
 
 const DEFAULT_LIMIT = 9;
-const MAX_LIMIT = 24;
+const MAX_LIMIT = ALL_CURRENT_MONTH_LIMIT;
 
 function localizeLaunchPresentation(launch: Launch): Launch {
   return {
@@ -173,13 +174,13 @@ export async function getLaunchesByIds(ids: string[]): Promise<Launch[]> {
 export async function getLaunchLiveSnapshot(ids: string[]) {
   const [items, recentCompleted, lastSyncedAt] = await Promise.all([
     getLaunchesByIds(ids),
-    getRecentCompletedLaunches(5),
+    getRecentCompletedLaunches(3),
     getLatestLaunchSyncAt(),
   ]);
   return { items, recentCompleted, lastSyncedAt };
 }
 
-export async function getRecentCompletedLaunches(limit = 5): Promise<Launch[]> {
+export async function getRecentCompletedLaunches(limit = 3): Promise<Launch[]> {
   const safeLimit = Math.min(Math.max(limit, 1), 10);
   const { data, error } = await getSupabaseAdmin()
     .from("launches")

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ALL_CURRENT_MONTH_LIMIT, FILTERED_LAUNCH_API_LIMIT } from "@/lib/launch-pagination";
 import { searchLaunches } from "@/lib/launch-repository";
 
 export const dynamic = "force-dynamic";
@@ -6,8 +7,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const limit = Number(params.get("limit") ?? "9");
-  if (!Number.isInteger(limit) || limit < 1 || limit > 24) {
-    return NextResponse.json({ error: "limit must be an integer between 1 and 24." }, { status: 400 });
+  const isUnfilteredCurrentMonth = params.get("month") === "current"
+    && !params.get("q")
+    && !params.get("provider")
+    && !params.get("cursor");
+  const maxLimit = isUnfilteredCurrentMonth ? ALL_CURRENT_MONTH_LIMIT : FILTERED_LAUNCH_API_LIMIT;
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
+    return NextResponse.json({ error: `limit must be an integer between 1 and ${maxLimit}.` }, { status: 400 });
   }
   try {
     const result = await searchLaunches({

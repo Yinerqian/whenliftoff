@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { limitPastLaunches, nextLaunchPage } from "@/lib/launch-pagination";
+import { isDefaultAllAgencies, limitPastLaunches, nextLaunchPage } from "@/lib/launch-pagination";
 
 describe("launch schedule pagination", () => {
+  it("recognizes the unfiltered all-agencies view", () => {
+    expect(isDefaultAllAgencies({ q: "", provider: "" })).toBe(true);
+    expect(isDefaultAllAgencies({ q: "  ", provider: "" })).toBe(true);
+    expect(isDefaultAllAgencies({ q: "Falcon", provider: "" })).toBe(false);
+    expect(isDefaultAllAgencies({ q: "", provider: "SpaceX" })).toBe(false);
+  });
+
   it("continues through every page in the current month before changing scope", () => {
     expect(nextLaunchPage("month-page-2", "month")).toEqual({
       scope: "month",
@@ -21,7 +28,7 @@ describe("launch schedule pagination", () => {
     expect(nextLaunchPage(null, "future")).toBeNull();
   });
 
-  it("keeps only the five most recent past launches while preserving future and TBD launches", () => {
+  it("keeps only the three most recent past launches while preserving future and TBD launches", () => {
     const launches = [
       ...Array.from({ length: 7 }, (_, index) => ({
         id: `past-${index + 1}`,
@@ -32,7 +39,7 @@ describe("launch schedule pagination", () => {
     ];
 
     expect(limitPastLaunches(launches, Date.parse("2026-07-10T00:00:00Z")).map((launch) => launch.id))
-      .toEqual(["past-3", "past-4", "past-5", "past-6", "past-7", "future", "tbd"]);
+      .toEqual(["past-5", "past-6", "past-7", "future", "tbd"]);
   });
 
   it("supports hiding all past launches without removing a launch at a future time", () => {

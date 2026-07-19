@@ -8,7 +8,14 @@ import { BackToTop } from "@/components/back-to-top";
 import { LaunchAutoRefresh } from "@/components/launch-auto-refresh";
 import { UpcomingLaunchCard } from "@/components/upcoming-launch-card";
 import { resolveLaunchImageUrl } from "@/lib/image";
-import { limitPastLaunches, nextLaunchPage, type LaunchPageScope } from "@/lib/launch-pagination";
+import {
+  ALL_CURRENT_MONTH_LIMIT,
+  isDefaultAllAgencies,
+  LAUNCH_PAGE_LIMIT,
+  limitPastLaunches,
+  nextLaunchPage,
+  type LaunchPageScope,
+} from "@/lib/launch-pagination";
 import { getLaunchStatusMeta } from "@/lib/launch-status";
 import { LAUNCH_SEARCH_EVENT } from "@/lib/site-search";
 import { formatBeijingClock } from "@/lib/time";
@@ -32,7 +39,10 @@ type LaunchNavigationHandlers = {
 const initialFilters: Filters = { q: "", provider: "" };
 
 function requestParams(filters: Filters, cursor?: string | null, scope: LaunchPageScope = "month") {
-  const params = new URLSearchParams({ limit: "18" });
+  const shouldLoadAllCurrentMonth = scope === "month" && !cursor && isDefaultAllAgencies(filters);
+  const params = new URLSearchParams({
+    limit: String(shouldLoadAllCurrentMonth ? ALL_CURRENT_MONTH_LIMIT : LAUNCH_PAGE_LIMIT),
+  });
   if (scope === "month") params.set("month", "current");
   else params.set("scope", "future");
   if (filters.q.trim()) params.set("q", filters.q.trim());
@@ -231,8 +241,8 @@ function LaunchCard({ launch, isNew = false, enterIndex = 0, isNavigating, onCom
         <div className="launch-info-grid">
           <span title={launch.provider_cn || launch.provider || "机构待确认"}><LaunchCardIcon name="agency" />{launch.provider_cn || launch.provider || "机构待确认"}</span>
           <span title={launch.rocket_name || "运载火箭待确认"}><LaunchCardIcon name="rocket" />{launch.rocket_name || "运载火箭待确认"}</span>
-          <span title={launch.pad || "发射台待确认"}><LaunchCardIcon name="pin" />{launch.pad || "发射台待确认"}</span>
-          <span title={launch.location_cn || launch.location || "地点待确认"}><LaunchCardIcon name="globe" />{launch.location_cn || launch.location || "地点待确认"}</span>
+          <span title={launch.pad || "发射台待确认"}><LaunchCardIcon name="globe" />{launch.pad || "发射台待确认"}</span>
+          <span title={launch.location_cn || launch.location || "地点待确认"}><LaunchCardIcon name="pin" />{launch.location_cn || launch.location || "地点待确认"}</span>
         </div>
       </div>
       <div className={`launch-state state-${tone}`}>
@@ -271,7 +281,7 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
       ?? null,
     [visibleLaunches],
   );
-  const visibleRecentLaunches = useMemo(() => recentLaunches.slice(0, 5), [recentLaunches]);
+  const visibleRecentLaunches = useMemo(() => recentLaunches.slice(0, 3), [recentLaunches]);
   const providerCounts = useMemo(() => {
     return new Map(result.providerCounts.map(({ provider, count }) => [provider, count]));
   }, [result.providerCounts]);
@@ -464,6 +474,14 @@ export function LaunchSchedule({ initial, recentCompleted, initialError = false,
 
         <div className="content-grid" id="schedule">
           <section className="timeline" aria-label="发射时间线" aria-busy={loading}>
+            {loadingMode === "replace" && (
+              <div className="timeline-loading-feedback" role="status" aria-live="polite">
+                <span className="timeline-loading-pill">
+                  <span className="launch-navigation-spinner" aria-hidden="true" />
+                  正在加载
+                </span>
+              </div>
+            )}
             <div
               className={`timeline-results${loadingMode === "replace" ? " is-updating" : ""}`}
               key={resultRevision}
