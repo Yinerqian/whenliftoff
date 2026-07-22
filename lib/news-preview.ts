@@ -28,7 +28,7 @@ export const previewNewsItems: NewsListItem[] = Array.from({ length: 30 }, (_, i
     authors: [{ name: index % 2 ? "任务报道组" : "航天编辑部" }], original_url: "https://spaceflightnewsapi.net/",
     image_url: images[index % images.length], news_site: ["SpaceNews", "NASA", "ESA", "中国航天报"][index % 4],
     published_at: published, api_updated_at: published, featured: index === 0, related_launch_ids: [], related_event_ids: [],
-    translated_block_count: 7, translation_status: "complete", created_at: published, synced_at: published,
+    translated_block_count: 7, translation_status: "complete", metadata_translation_status: "complete", created_at: published, synced_at: published,
   };
 });
 
@@ -46,7 +46,17 @@ const previewBlocks: NewsContentBlock[] = [
 export function previewNewsItem(type: string, id: number): NewsItem | null {
   const listItem = previewNewsItems.find((item) => item.content_type === type && item.external_id === id);
   if (!listItem) return null;
-  return { ...listItem, source_blocks: [], body_cn_blocks: previewBlocks, metadata_hash: "preview", content_hash: "preview", processing_error: null, last_attempted_at: null };
+  return {
+    ...listItem,
+    source_blocks: [],
+    body_cn_blocks: previewBlocks,
+    metadata_hash: "preview",
+    content_hash: "preview",
+    processing_error: null,
+    last_attempted_at: null,
+    metadata_translation_error: null,
+    metadata_translation_attempted_at: null,
+  };
 }
 
 export function previewNewsPage(cursor?: string, query?: string) {

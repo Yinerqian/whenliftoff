@@ -68,12 +68,12 @@ export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | 
     <main className="news-detail-route-main">
       <div className="news-detail-page">
         <div className="news-breadcrumb-row">
-          <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/news">航天新闻</Link><span aria-hidden="true">›</span><span aria-current="page">{item.title_cn || item.title}</span></nav>
+          <nav className="news-breadcrumb" aria-label="面包屑"><Link href="/news">航天新闻</Link><span aria-hidden="true">›</span><span aria-current="page">{item.title_cn ?? "新闻中文化处理中"}</span></nav>
           <DetailBackButton fallbackHref="/news" />
         </div>
         <header className="news-detail-header">
           <span className="news-detail-type">{TYPE_LABEL[item.content_type]}</span>
-          <h1>{item.title_cn || item.title}</h1>
+          <h1>{item.title_cn ?? "新闻中文化处理中"}</h1>
           {item.title_cn && item.title_cn !== item.title && <p className="news-original-title">原题：{item.title}</p>}
           <div className="news-detail-byline"><strong>{item.news_site}</strong><span>{authors || "来源编辑部"}</span><time>北京时间 {formatDetailTime(item.published_at)}</time></div>
         </header>
@@ -82,7 +82,7 @@ export function NewsDetail({ item, launch }: { item: NewsItem; launch: Launch | 
             <NewsImage className="news-detail-hero" src={item.image_url} alt="" fetchPriority="high" />
             <div className="news-article-body">
               {hasBody ? <ArticleBlocks blocks={blocks} /> : <>
-                {(item.summary_cn || item.summary) && <p className="news-summary-lead">{item.summary_cn || item.summary}</p>}
+                {item.summary_cn && <p className="news-summary-lead">{item.summary_cn}</p>}
                 <div className="news-summary-fallback"><h2>{isPending ? "全文中文化处理中" : "当前仅提供中文摘要"}</h2><p>{isPending ? "正文正在安全抽取并分块翻译，已完成的内容会在后续同步中自动补齐。" : "原网站未能提供可稳定提取的正文，请前往原文继续阅读。"}</p></div>
               </>}
               {hasBody && item.translation_status !== "complete" && <div className="news-summary-fallback"><h2>翻译仍在继续</h2><p>以上为当前已完成的中文正文，后续段落会在同步任务中自动补齐。</p></div>}

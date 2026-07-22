@@ -24,7 +24,8 @@ type UpstreamResponse = { results?: UpstreamNewsItem[] };
 export type NormalizedNewsItem = Omit<
   NewsItem,
   "created_at" | "source_blocks" | "body_cn_blocks" | "translation_status" | "translated_block_count" |
-    "processing_error" | "last_attempted_at" | "content_hash" | "title_cn" | "summary_cn"
+    "processing_error" | "last_attempted_at" | "content_hash" | "title_cn" | "summary_cn" |
+    "metadata_translation_status" | "metadata_translation_error" | "metadata_translation_attempted_at"
 > & { metadata_hash: string };
 
 function cleanText(value: unknown) {
@@ -110,4 +111,3 @@ export async function fetchLatestNews() {
     clearTimeout(timeout);
   }
 }
-

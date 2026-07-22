@@ -7,13 +7,13 @@ import type { NewsBlockType, NewsContentBlock } from "@/lib/news-types";
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 
-function isBlockedIpv4(address: string) {
+export function isBlockedIpv4(address: string) {
   const parts = address.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) return true;
-  const [a, b] = parts;
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
+  const [a, b, c] = parts;
   return a === 0 || a === 10 || a === 127 || a >= 224 ||
     (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0) ||
+    (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0 && c === 0) ||
     (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19));
 }
 

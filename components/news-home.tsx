@@ -104,15 +104,15 @@ function NewsCard({ card, navigationPoint, onCommit }: { card: NewsColumnCard } 
     >
       <Link
         href={href}
-        aria-label={item.title_cn || item.title}
+        aria-label={item.title_cn ?? "新闻中文化处理中"}
         onClick={(event) => onCommit(event, href)}
       >
         {showImage && <div className="news-card-image"><NewsImage src={item.image_url} alt="" loading="lazy" /></div>}
         <div className="news-card-copy">
           <div className="news-card-kicker"><span>{TYPE_LABEL[item.content_type]}</span><i>·</i><time>{formatNewsDate(item.published_at)}</time></div>
-          <h2>{item.title_cn || item.title}</h2>
+          <h2>{item.title_cn ?? "新闻中文化处理中"}</h2>
           <p className="news-card-source">来源：{item.news_site}</p>
-          {showSummary && (item.summary_cn || item.summary) && <p className="news-card-summary">{item.summary_cn || item.summary}</p>}
+          {showSummary && item.summary_cn && <p className="news-card-summary">{item.summary_cn}</p>}
         </div>
         {navigationPoint && <NavigationFeedback point={navigationPoint} />}
       </Link>
@@ -123,8 +123,8 @@ function NewsCard({ card, navigationPoint, onCommit }: { card: NewsColumnCard } 
 function Feature({ item, navigationPoint, onCommit }: { item: NewsListItem } & Omit<NavigationFeedbackProps, "href">) {
   const href = `/news/${item.content_type}/${item.external_id}`;
   const isNavigating = navigationPoint !== null;
-  const title = item.title_cn || item.title;
-  const summary = item.summary_cn || item.summary || "点击查看这条航天动态的中文摘要与来源信息。";
+  const title = item.title_cn ?? "新闻中文化处理中";
+  const summary = item.summary_cn || "点击查看这条航天动态的中文摘要与来源信息。";
   const typeLabel = item.content_type === "blog" ? "机构博客" : item.content_type === "report" ? "行业报告" : "航天新闻";
   return (
     <article className={`news-feature home-news-feature${isNavigating ? " is-navigating" : ""}`} aria-busy={isNavigating}>
@@ -285,8 +285,8 @@ export function NewsHome({ initial, nextLaunch, initialError = false, preview = 
     }
   }
 
-  const emptyTitle = error ? "新闻暂时不可用" : searchQuery ? "未找到相关新闻" : "正在等待第一批航天新闻";
-  const emptyMessage = error || (searchQuery ? `没有找到与“${searchQuery}”相关的新闻，请尝试其他关键词。` : "同步完成后，最新的新闻、博客和报告会出现在这里。");
+  const emptyTitle = error ? "新闻暂时不可用" : searchQuery ? "未找到相关新闻" : "新闻正在中文化";
+  const emptyMessage = error || (searchQuery ? `没有找到与“${searchQuery}”相关的新闻，请尝试其他关键词。` : "中文标题和摘要完成后会自动出现在这里，请稍后刷新。");
 
   return (
     <main className="news-route-main">

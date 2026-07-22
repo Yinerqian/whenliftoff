@@ -36,6 +36,7 @@ function item(id: number, title: string): NewsListItem {
     related_event_ids: [],
     translated_block_count: 1,
     translation_status: "complete",
+    metadata_translation_status: "complete",
     created_at: timestamp,
     synced_at: timestamp,
   };

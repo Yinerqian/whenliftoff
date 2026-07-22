@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { extractBlocksFromHtml } from "@/lib/news-extraction";
+import { assertPublicHttpUrl, extractBlocksFromHtml, isBlockedIpv4 } from "@/lib/news-extraction";
 
 describe("news article extraction", () => {
+  it("allows NASA's public 192.0.66.108 address without weakening private-address blocking", async () => {
+    expect(isBlockedIpv4("192.0.66.108")).toBe(false);
+    expect(isBlockedIpv4("192.0.0.1")).toBe(true);
+    expect(isBlockedIpv4("192.168.1.1")).toBe(true);
+    expect(isBlockedIpv4("10.0.0.1")).toBe(true);
+    expect(isBlockedIpv4("127.0.0.1")).toBe(true);
+    expect(isBlockedIpv4("999.0.0.1")).toBe(true);
+    await expect(assertPublicHttpUrl("https://192.0.66.108/nasa-article")).resolves.toMatchObject({
+      hostname: "192.0.66.108",
+    });
+  });
+
   it("keeps semantic text blocks and drops navigation, scripts and ads", () => {
     const html = `<!doctype html><html><body>
       <nav>Subscription Home Login</nav><script>window.evil = true</script>
@@ -21,4 +33,3 @@ describe("news article extraction", () => {
     expect(text).not.toContain("Subscription Home Login");
   });
 });
-

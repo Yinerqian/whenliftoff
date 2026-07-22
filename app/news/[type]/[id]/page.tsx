@@ -22,8 +22,8 @@ export async function generateMetadata({ params, searchParams }: NewsDetailPageP
   const preview = process.env.NODE_ENV === "development" && (await searchParams)?.preview === "1";
   const item = preview ? previewNewsItem(route.type, Number(route.id)) : await resolveItem(Promise.resolve(route));
   if (!item) return { title: "新闻未找到 · whenliftoff" };
-  const title = item.title_cn || item.title;
-  const description = item.summary_cn || item.summary || `来自 ${item.news_site} 的航天新闻中文阅读页。`;
+  const title = item.title_cn ?? "航天新闻中文化处理中";
+  const description = item.summary_cn || `来自 ${item.news_site} 的航天新闻中文阅读页。`;
   return {
     title: `${title} · 航天新闻 | whenliftoff`,
     description,

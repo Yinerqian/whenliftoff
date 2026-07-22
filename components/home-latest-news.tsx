@@ -34,8 +34,8 @@ export function HomeLatestNews({ news }: { news: NewsListItem | null }) {
   }
 
   const href = `/news/${news.content_type}/${news.external_id}`;
-  const title = news.title_cn || news.title;
-  const summary = news.summary_cn || news.summary || "点击查看这条航天动态的中文摘要与来源信息。";
+  const title = news.title_cn ?? "新闻中文化处理中";
+  const summary = news.summary_cn || "点击查看这条航天动态的中文摘要与来源信息。";
   const typeLabel = news.content_type === "blog" ? "机构博客" : news.content_type === "report" ? "行业报告" : "航天新闻";
 
   function commitNavigation(event: MouseEvent<HTMLAnchorElement>) {

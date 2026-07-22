@@ -9,6 +9,7 @@ export type NewsTranslationStatus =
   | "complete"
   | "summary_only"
   | "failed";
+export type NewsMetadataTranslationStatus = "pending" | "translating" | "complete" | "failed";
 
 export type NewsAuthor = { name: string; socials?: Record<string, string> | null };
 
@@ -25,6 +26,9 @@ export type NewsItem = {
   title_cn: string | null;
   summary: string | null;
   summary_cn: string | null;
+  metadata_translation_status: NewsMetadataTranslationStatus;
+  metadata_translation_error: string | null;
+  metadata_translation_attempted_at: string | null;
   authors: NewsAuthor[];
   original_url: string;
   image_url: string | null;
@@ -48,7 +52,8 @@ export type NewsItem = {
 
 export type NewsListItem = Omit<
   NewsItem,
-  "source_blocks" | "body_cn_blocks" | "metadata_hash" | "content_hash" | "processing_error" | "last_attempted_at"
+  "source_blocks" | "body_cn_blocks" | "metadata_hash" | "content_hash" | "processing_error" | "last_attempted_at" |
+    "metadata_translation_error" | "metadata_translation_attempted_at"
 >;
 
 export type NewsPageResult = {

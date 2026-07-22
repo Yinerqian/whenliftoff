@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { appendNewsColumns, distributeNewsColumns, newsCardVariant } from "@/lib/news-layout";
 import { encodeNewsCursor, paginateNewsItems } from "@/lib/news-repository";
-import { newsUpstreamChanged, staleNewsKeys } from "@/lib/sync-news";
+import { isNewsMetadataReady, newsUpstreamChanged, staleNewsKeys } from "@/lib/sync-news";
 import type { NewsListItem } from "@/lib/news-types";
 
 function item(id: number): NewsListItem {
@@ -12,7 +12,7 @@ function item(id: number): NewsListItem {
     title: `News ${id}`, title_cn: `新闻 ${id}`, summary: null, summary_cn: null, authors: [],
     original_url: `https://example.com/${id}`, image_url: null, news_site: "Example", published_at: published,
     api_updated_at: published, featured: false, related_launch_ids: [], related_event_ids: [], translated_block_count: 0,
-    translation_status: "pending", created_at: published, synced_at: published,
+    translation_status: "pending", metadata_translation_status: "complete", created_at: published, synced_at: published,
   };
 }
 
@@ -61,6 +61,20 @@ describe("news cursor and retention helpers", () => {
     const existing = [item(1), item(2), item(3)];
     const active = [item(2), item(3), item(4)];
     expect(staleNewsKeys(existing as never[], active as never[]).map((value) => value.external_id)).toEqual([1]);
+  });
+
+  it("retains older Chinese-ready records while new upstream rows are translating", () => {
+    const existing = [item(1), item(2), item(3)];
+    const active = [item(2), item(3), item(4)];
+    const publishedFallback = [item(1)];
+    expect(staleNewsKeys(existing as never[], active as never[], publishedFallback as never[])).toEqual([]);
+  });
+
+  it("requires a Chinese summary only when the upstream item has a summary", () => {
+    expect(isNewsMetadataReady({ summary: null } as never, { title_cn: "中文标题", summary_cn: null })).toBe(true);
+    expect(isNewsMetadataReady({ summary: "English summary" } as never, { title_cn: "中文标题", summary_cn: null })).toBe(false);
+    expect(isNewsMetadataReady({ summary: "English summary" } as never, { title_cn: "中文标题", summary_cn: "中文摘要" })).toBe(true);
+    expect(isNewsMetadataReady({ summary: null } as never, { title_cn: " ", summary_cn: null })).toBe(false);
   });
 
   it("treats equivalent UTC timestamp formats as the same upstream version", () => {

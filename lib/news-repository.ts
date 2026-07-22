@@ -5,7 +5,7 @@ import { isNewsContentType, newsItemKey, type NewsItem, type NewsListItem, type 
 const LIST_COLUMNS = [
   "content_type", "external_id", "title", "title_cn", "summary", "summary_cn", "authors", "original_url",
   "image_url", "news_site", "published_at", "api_updated_at", "featured", "related_launch_ids", "related_event_ids",
-  "translated_block_count", "translation_status", "created_at", "synced_at",
+  "translated_block_count", "translation_status", "metadata_translation_status", "created_at", "synced_at",
 ].join(",");
 
 type CursorValue = { published_at: string; content_type: string; external_id: number };
@@ -61,7 +61,8 @@ export async function listNews({ cursor, q }: NewsQuery = {}): Promise<NewsPageR
   const search = normalizeNewsSearch(q);
   let request = supabase
     .from("news_items")
-    .select(LIST_COLUMNS);
+    .select(LIST_COLUMNS)
+    .eq("metadata_translation_status", "complete");
   if (search) {
     const pattern = `*${search}*`;
     request = request.or([
@@ -95,6 +96,7 @@ export async function getLatestNews(): Promise<NewsListItem | null> {
   const { data, error } = await getSupabaseAdmin()
     .from("news_items")
     .select(LIST_COLUMNS)
+    .eq("metadata_translation_status", "complete")
     .order("published_at", { ascending: false })
     .order("content_type", { ascending: true })
     .order("external_id", { ascending: false })
@@ -111,6 +113,7 @@ async function getNewsItemUncached(contentType: string, externalId: number) {
     .select("*")
     .eq("content_type", contentType)
     .eq("external_id", externalId)
+    .eq("metadata_translation_status", "complete")
     .maybeSingle();
   if (error) throw error;
   return data as NewsItem | null;

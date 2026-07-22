@@ -33,7 +33,7 @@ async function deepSeekJson(messages: Array<{ role: "system" | "user"; content: 
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY must be configured for translations.");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
+  const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
@@ -90,7 +90,6 @@ export async function translateNewsMetadataBatch(items: NewsMetadataInput[]) {
       summary_cn: typeof item.summary_cn === "string" && item.summary_cn.trim() ? item.summary_cn.trim() : null,
     });
   }
-  if (result.size !== items.length) throw new Error("DeepSeek omitted one or more metadata translations.");
   return result;
 }
 
