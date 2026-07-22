@@ -20,3 +20,20 @@ export function resolveLaunchImageUrl(value: unknown): string | null {
   }
   return /^https?:\/\//i.test(trimmed) ? trimmed : null;
 }
+
+export type NewsImageTraits = {
+  isExtremeRatio: boolean;
+  isLowResolution: boolean;
+};
+
+export function getNewsImageTraits(width: number, height: number): NewsImageTraits {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return { isExtremeRatio: false, isLowResolution: false };
+  }
+
+  const ratio = width / height;
+  return {
+    isExtremeRatio: ratio > 2.2 || ratio < 0.72,
+    isLowResolution: width < 480 || height < 270 || width * height < 160_000,
+  };
+}
